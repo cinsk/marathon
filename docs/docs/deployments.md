@@ -18,6 +18,81 @@ Multiple deployments can be performed at the same, as long as one application is
 If a deployment is requested, that tries to change an application that is already being changed by another active deployment, 
 the new deployment request will be rejected.
 
+## Basics
+
+Let us start with a simple example of a deployment; an app that prints `Hello Marathon` to stdout and then sleeps for 5 sec, in an endless loop.
+You would use the following application resource (in JSON format) to describe the deployment: 
+
+```json
+{
+    "id": "basic-0", 
+    "cmd": "while [ true ] ; do echo 'Hello Marathon' ; sleep 5 ; done",
+    "cpus": 0.1,
+    "mem": 10.0,
+    "instances": 1
+}
+```
+
+Note that `cmd` in the above example is the command that gets executed. 
+Its value is wrapped by the underlying [Mesos fetcher](https://github.com/apache/mesos/blob/master/src/launcher/fetcher.cpp) via `/bin/sh -c ${cmd}`.
+
+For any non-trivial deployment you typically depend on a collection of resources, that is files or and archives of files. To deal with this this, Marathon has the concept of `uris` and it leverages Mesos to do the legwork in terms of downloading (and potentially) extracting resources. But before we dive into this topic, let's have a look at an example:
+
+```json
+{
+    "id": "basic-1", 
+    "cmd": "cool-script.sh",
+    "cpus": 0.1,
+    "mem": 10.0,
+    "instances": 1,
+    "uris": [
+        "https://example.com/app/cool-script.sh"
+    ]
+}
+```
+
+Above means: before executing the `cmd`, download the resource `https://example.com/app/cool-script.sh` (via Mesos) and make it available in the apps sandbox. You can check that through visiting the Mesos UI and click into a Mesos worker node's sandbox where you'll find `cool-script.sh`.
+
+As already mentioned above, Marathon also [knows how to handle](https://github.com/mesosphere/marathon/blob/master/src/main/scala/mesosphere/mesos/TaskBuilder.scala) deployment resources that reside in archives. Currently, Marathon will (before executing the `cmd`) first attempt to unpack/extract resources with the following file extensions:
+
+* `.tgz`
+* `.tar.gz`
+* `.tbz2`
+* `.tar.bz2`
+* `.txz`
+* `.tar.xz`
+* `.zip`
+
+And how this looks in practice shows you the following example: let's assume you have an application in a ZIP file at `https://example.com/app.zip`. This ZIP file contains the script `cool-script.sh` and that's what you want to execute. Here's how:
+
+```json
+{
+    "id": "basic-2", 
+    "cmd": "app/cool-script.sh",
+    "cpus": 0.1,
+    "mem": 10.0,
+    "instances": 1,
+    "uris": [
+        "https://example.com/app.zip"
+    ]
+}
+```
+
+Note that in contrast to the example `basic-1` we now have a `cmd` that looks as follows: `app/cool-script.sh`. This stems from the fact that when the ZIP file gets downloaded and extracted, a directory `app` according to the file name `app.zip` is created where the content of the ZIP file is extracted into.
+
+Note also that you can specify many resources, not only one. So, for example, you could provide a git repo and some resources from a CDN network as follows:
+
+```json
+{
+    ...
+    "uris": [
+        "https://git.example.com/repo-app.zip", "https://cdn.example.net/my-file.jpg", "https://cdn.example.net/my-other-file.css"
+    ]
+    ...
+}
+```
+
+
 ## Dependencies
 
 Applications without dependencies can be deployed in any order without restriction.
