@@ -12,12 +12,12 @@ import mesosphere.marathon.state.Container.Docker.PortMapping
 import mesosphere.marathon.state.Container.{ Docker, Volume }
 import mesosphere.marathon.state._
 import mesosphere.marathon.upgrade._
+import mesosphere.mesos.protos._
 import org.apache.mesos.Protos.ContainerInfo.DockerInfo.Network
 import org.apache.mesos.{ Protos => mesos }
 import play.api.data.validation.ValidationError
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
-
 import scala.collection.immutable.Seq
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
@@ -52,6 +52,71 @@ trait Formats
     with DeploymentFormats
     with EventFormats {
   import scala.collection.JavaConverters._
+
+  implicit lazy val ValueWrites: Writes[mesos.Value] = Writes { value =>
+    import scala.collection.JavaConverters._
+
+    value.getType() match {
+      case mesos.Value.Type.SCALAR => JsNumber(value.getScalar.getValue)
+      case mesos.Value.Type.SET =>
+        Json.toJson(value.getSet().getItemList().asScala.toList)
+      case mesos.Value.Type.TEXT => JsString(value.getText.getValue)
+      case mesos.Value.Type.RANGES =>
+        Json.toJson(for (elem <- value.getRanges().getRangeList().asScala)
+          yield Seq(elem.getBegin(), elem.getEnd()))
+
+    }
+  }
+
+  implicit def valueFormat: Format[mesos.Value] = {
+    val reads = Reads[mesos.Value] {
+      case JsNumber(num) =>
+        JsSuccess(mesos.Value.newBuilder().setScalar(mesos.Value.Scalar.newBuilder().setValue(num.toDouble)).build())
+      case JsString(text) =>
+        JsSuccess(mesos.Value.newBuilder().setText(
+          mesos.Value.Text.newBuilder().setValue(text)).build())
+      case _ => JsError("not supported yet")
+    }
+    val writes = Writes[mesos.Value] { value =>
+      ValueWrites.writes(value)
+    }
+    Format(reads, writes)
+  }
+
+  implicit lazy val ResourceFormat: Format[Resource] = {
+    val reads = new Reads[Resource] {
+      def reads(json: JsValue): JsResult[Resource] = json match {
+        case JsObject(pairs) =>
+          val name = (json \ "name").as[String]
+          val role = (json \ "role").asOpt[JsString].getOrElse(JsString("*")).as[String]
+          val value = (json \ "value")
+
+          value match {
+            case JsNumber(num) => JsSuccess(ScalarResource(name, num.toDouble, role))
+            case _             => JsError("Not supported yet")
+          }
+        case _ => JsError("Not supported yet")
+      }
+    }
+    val writes = Writes[Resource] {
+      case ScalarResource(name, value, role) =>
+        Json.toJson(Map("name" -> JsString(name),
+          "value" -> JsNumber(value),
+          "role" -> JsString(role)))
+      case SetResource(name, items, role) =>
+        Json.toJson(Map("name" -> JsString(name),
+          "role" -> JsString(role),
+          "value" -> Json.toJson(items.toList)))
+      case RangesResource(name, ranges, role) =>
+        // ranges: Seq[Range]
+        Json.toJson(Map("name" -> JsString(name),
+          "role" -> JsString(role),
+          "value" -> Json.toJson(for (r <- ranges)
+            yield JsArray(Seq(JsNumber(r.begin), JsNumber(r.end))))))
+    }
+
+    Format(reads, writes)
+  }
 
   implicit lazy val TaskFailureWrites: Writes[TaskFailure] = Writes { failure =>
     Json.obj(
@@ -350,9 +415,10 @@ trait AppDefinitionFormats {
       (__ \ "user").readNullable[String] ~
       (__ \ "env").readNullable[Map[String, String]].withDefault(DefaultEnv) ~
       (__ \ "instances").readNullable[Integer](minValue(0)).withDefault(DefaultInstances) ~
-      (__ \ "cpus").readNullable[JDouble](greaterThan(0.0)).withDefault(DefaultCpus) ~
-      (__ \ "mem").readNullable[JDouble].withDefault(DefaultMem) ~
-      (__ \ "disk").readNullable[JDouble].withDefault(DefaultDisk) ~
+      (__ \ "resources").readNullable[Map[String, JDouble]].withDefault(DefaultResources) ~
+      // (__ \ "cpus").readNullable[JDouble](greaterThan(0.0)).withDefault(DefaultCpus) ~
+      // (__ \ "mem").readNullable[JDouble].withDefault(DefaultMem) ~
+      // (__ \ "disk").readNullable[JDouble].withDefault(DefaultDisk) ~
       (__ \ "executor").readNullable[String](Reads.pattern(executorPattern)).withDefault(DefaultExecutor) ~
       (__ \ "constraints").readNullable[Set[Constraint]].withDefault(DefaultConstraints) ~
       (__ \ "uris").readNullable[Seq[String]].withDefault(DefaultUris) ~
@@ -365,7 +431,7 @@ trait AppDefinitionFormats {
       (__ \ "container").readNullable[Container] ~
       (__ \ "healthChecks").readNullable[Set[HealthCheck]].withDefault(DefaultHealthChecks) ~
       (__ \ "dependencies").readNullable[Set[PathId]].withDefault(DefaultDependencies)
-    )(AppDefinition(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)).flatMap { app =>
+    )(AppDefinition(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)).flatMap { app =>
         // necessary because of case class limitations (good for another 21 fields)
         case class ExtraFields(
           upgradeStrategy: UpgradeStrategy,
@@ -403,9 +469,10 @@ trait AppDefinitionFormats {
           "user" -> app.user,
           "env" -> app.env,
           "instances" -> app.instances,
-          "cpus" -> app.cpus,
-          "mem" -> app.mem,
-          "disk" -> app.disk,
+          "resources" -> app.resources,
+          //          "cpus" -> app.cpus,
+          //          "mem" -> app.mem,
+          //          "disk" -> app.disk,
           "executor" -> app.executor,
           "constraints" -> app.constraints,
           "uris" -> app.uris,
@@ -439,9 +506,10 @@ trait AppDefinitionFormats {
       (__ \ "user").readNullable[String] ~
       (__ \ "env").readNullable[Map[String, String]] ~
       (__ \ "instances").readNullable[Integer](minValue(0)) ~
-      (__ \ "cpus").readNullable[JDouble](greaterThan(0.0)) ~
-      (__ \ "mem").readNullable[JDouble] ~
-      (__ \ "disk").readNullable[JDouble] ~
+      (__ \ "resources").readNullable[Map[String, JDouble]] ~
+      // (__ \ "cpus").readNullable[JDouble](greaterThan(0.0)) ~
+      // (__ \ "mem").readNullable[JDouble] ~
+      // (__ \ "disk").readNullable[JDouble] ~
       (__ \ "executor").readNullable[String](Reads.pattern("^(//cmd)|(/?[^/]+(/[^/]+)*)|$".r)) ~
       (__ \ "constraints").readNullable[Set[Constraint]] ~
       (__ \ "uris").readNullable[Seq[String]] ~
@@ -454,7 +522,7 @@ trait AppDefinitionFormats {
       (__ \ "container").readNullable[Container] ~
       (__ \ "healthChecks").readNullable[Set[HealthCheck]] ~
       (__ \ "dependencies").readNullable[Set[PathId]]
-    )(AppUpdate(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)).flatMap { update =>
+    )(AppUpdate(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _)).flatMap { update =>
         // necessary because of case class limitations (good for another 21 fields)
         case class ExtraFields(
           upgradeStrategy: Option[UpgradeStrategy],

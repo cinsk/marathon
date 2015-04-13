@@ -233,9 +233,10 @@ object MarathonModule {
       user: Option[String] = None,
       env: Option[Map[String, String]] = None,
       instances: Option[JInt] = None,
-      cpus: Option[JDouble] = None,
-      mem: Option[JDouble] = None,
-      disk: Option[JDouble] = None,
+      resources: Option[Map[String, JDouble]] = None,
+      // cpus: Option[JDouble] = None,
+      // mem: Option[JDouble] = None,
+      // disk: Option[JDouble] = None,
       executor: Option[String] = None,
       constraints: Option[Set[Constraint]] = None,
       uris: Option[Seq[String]] = None,
@@ -252,7 +253,9 @@ object MarathonModule {
       labels: Option[Map[String, String]] = None,
       version: Option[Timestamp] = None) {
     def build(): AppUpdate = AppUpdate(
-      id, cmd, args, user, env, instances, cpus, mem, disk, executor, constraints,
+      id, cmd, args, user, env, instances, resources,
+      // cpus, mem, disk,
+      executor, constraints,
       uris, storeUrls, ports, requirePorts, backoff, backoffFactor, maxLaunchDelay,
       container, healthChecks, dependencies, upgradeStrategy, labels, version
     )

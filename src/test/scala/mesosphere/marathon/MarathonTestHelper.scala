@@ -66,9 +66,12 @@ trait MarathonTestHelper {
 
   def makeBasicApp() = AppDefinition(
     id = "test-app".toPath,
-    cpus = 1,
-    mem = 64,
-    disk = 1,
+    resources = Map(Resource.CPUS -> 1,
+      Resource.MEM -> 64,
+      Resource.DISK -> 1),
+    // cpus = 1,
+    // mem = 64,
+    // disk = 1,
     executor = "//cmd"
   )
 }

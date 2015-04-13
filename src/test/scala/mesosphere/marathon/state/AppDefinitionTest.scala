@@ -12,6 +12,7 @@ import mesosphere.marathon.api.v2.json.EnrichedTask
 import mesosphere.marathon.health.{ HealthCheck, HealthCounts }
 import mesosphere.marathon.state.Container.Docker
 import mesosphere.marathon.state.PathId._
+import mesosphere.mesos.protos.Resource
 import org.apache.mesos.{ Protos => mesos }
 import org.scalatest.Matchers
 import play.api.libs.json.Json
@@ -26,8 +27,10 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
     val app1 = AppDefinition(
       id = "play".toPath,
       cmd = Some("bash foo-*/start -Dhttp.port=$PORT"),
-      cpus = 4,
-      mem = 256,
+      resources = Map(Resource.CPUS -> 4,
+        Resource.MEM -> 256),
+      // cpus = 4,
+      // mem = 256,
       instances = 5,
       ports = Seq(8080, 8081),
       executor = "//cmd"
@@ -55,8 +58,10 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
       container = Some(
         Container(docker = Some(Container.Docker("group/image")))
       ),
-      cpus = 4,
-      mem = 256,
+      resources = Map(Resource.CPUS -> 4,
+        Resource.MEM -> 256),
+      // cpus = 4,
+      // mem = 256,
       instances = 5,
       ports = Seq(8080, 8081),
       executor = "//cmd",
@@ -102,8 +107,10 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
     val app1 = AppDefinition(
       id = "play".toPath,
       cmd = Some("bash foo-*/start -Dhttp.port=$PORT"),
-      cpus = 4,
-      mem = 256,
+      resources = Map(Resource.CPUS -> 4,
+        Resource.MEM -> 256),
+      // cpus = 4,
+      // mem = 256,
       instances = 5,
       ports = Seq(8080, 8081),
       executor = "//cmd",
@@ -319,9 +326,12 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
       user = Some("nobody"),
       env = Map("key1" -> "value1", "key2" -> "value2"),
       instances = 5,
-      cpus = 5.0,
-      mem = 55.0,
-      disk = 550.0,
+      resources = Map(Resource.CPUS -> 5.0,
+        Resource.MEM -> 55.0,
+        Resource.DISK -> 550.0),
+      // cpus = 5.0,
+      // mem = 55.0,
+      // disk = 550.0,
       executor = "",
       constraints = Set(
         Constraint.newBuilder

@@ -34,9 +34,12 @@ class TaskBuilderTest extends MarathonSpec {
       AppDefinition(
         id = "/product/frontend".toPath,
         cmd = Some("foo"),
-        cpus = 1,
-        mem = 64,
-        disk = 1,
+        resources = Map(Resource.CPUS -> 1,
+          Resource.MEM -> 64,
+          Resource.DISK -> 1),
+        // cpus = 1,
+        // mem = 64,
+        // disk = 1,
         executor = "//cmd",
         ports = Seq(8080, 8081)
       )
@@ -97,9 +100,12 @@ class TaskBuilderTest extends MarathonSpec {
       AppDefinition(
         id = "testApp".toPath,
         args = Some(Seq("a", "b", "c")),
-        cpus = 1,
-        mem = 64,
-        disk = 1,
+        resources = Map(Resource.CPUS -> 1,
+          Resource.MEM -> 64,
+          Resource.DISK -> 1),
+        // cpus = 1,
+        // mem = 64,
+        // disk = 1,
         executor = "//cmd",
         ports = Seq(8080, 8081)
       )
@@ -140,9 +146,12 @@ class TaskBuilderTest extends MarathonSpec {
       offer,
       AppDefinition(
         id = "testApp".toPath,
-        cpus = 1,
-        mem = 64,
-        disk = 1,
+        resources = Map(Resource.CPUS -> 1,
+          Resource.MEM -> 64,
+          Resource.DISK -> 1),
+        // cpus = 1,
+        // mem = 64,
+        // disk = 1,
         cmd = Some("foo"),
         executor = "/custom/executor",
         ports = Seq(8080, 8081)
@@ -173,9 +182,12 @@ class TaskBuilderTest extends MarathonSpec {
       offer,
       AppDefinition(
         id = "testApp".toPath,
-        cpus = 1,
-        mem = 64,
-        disk = 1,
+        resources = Map(Resource.CPUS -> 1,
+          Resource.MEM -> 64,
+          Resource.DISK -> 1),
+        // cpus = 1,
+        // mem = 64,
+        // disk = 1,
         args = Some(Seq("a", "b", "c")),
         executor = "/custom/executor",
         ports = Seq(8080, 8081)
@@ -206,9 +218,12 @@ class TaskBuilderTest extends MarathonSpec {
       offer,
       AppDefinition(
         id = "testApp".toPath,
-        cpus = 2,
-        mem = 200,
-        disk = 2,
+        resources = Map(Resource.CPUS -> 2,
+          Resource.MEM -> 200,
+          Resource.DISK -> 2),
+        // cpus = 2,
+        // mem = 200,
+        // disk = 2,
         executor = "//cmd",
         ports = Seq(8080, 8081)
       )
@@ -247,9 +262,12 @@ class TaskBuilderTest extends MarathonSpec {
       offer,
       AppDefinition(
         id = "testApp".toPath,
-        cpus = 1,
-        mem = 64,
-        disk = 1,
+        resources = Map(Resource.CPUS -> 1,
+          Resource.MEM -> 64,
+          Resource.DISK -> 1),
+        // cpus = 1,
+        // mem = 64,
+        // disk = 1,
         executor = "//cmd",
         ports = Seq(8080, 8081)
       )
@@ -569,9 +587,12 @@ class TaskBuilderTest extends MarathonSpec {
       TaskBuilder.commandInfo(
         AppDefinition(
           id = "testApp".toPath,
-          cpus = 1,
-          mem = 64,
-          disk = 1,
+          resources = Map(Resource.CPUS -> 1,
+            Resource.MEM -> 64,
+            Resource.DISK -> 1),
+          // cpus = 1,
+          // mem = 64,
+          // disk = 1,
           executor = "//cmd",
           uris = Seq("http://www.example.com", "http://www.example.com/test.tgz",
             "example.tar.gz"),

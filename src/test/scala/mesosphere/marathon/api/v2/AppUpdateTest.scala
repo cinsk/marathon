@@ -7,6 +7,8 @@ import mesosphere.marathon.health.HealthCheck
 import mesosphere.marathon.state.Container._
 import mesosphere.marathon.state.{ Container, PathId, Timestamp, UpgradeStrategy }
 import mesosphere.marathon.state.PathId._
+import mesosphere.mesos.protos.Resource
+
 import org.apache.mesos.{ Protos => mesos }
 
 import scala.collection.immutable.Seq
@@ -62,9 +64,12 @@ class AppUpdateTest extends MarathonSpec {
       user = Some("nobody"),
       env = Some(Map("LANG" -> "en-US")),
       instances = Some(16),
-      cpus = Some(2.0),
-      mem = Some(256.0),
-      disk = Some(1024.0),
+      resources = Some(Map(Resource.CPUS -> 2.0,
+        Resource.CPUS -> 256.0,
+        Resource.CPUS -> 1024.0)),
+      // cpus = Some(2.0),
+      // mem = Some(256.0),
+      // disk = Some(1024.0),
       executor = Some("http://dl.corp.org/executors/some.executor"),
       constraints = Some(Set()),
       uris = Some(Seq("http://dl.corp.org/prodX-1.2.3.tgz")),

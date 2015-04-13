@@ -2,6 +2,7 @@ package mesosphere.marathon.api.v2
 
 import java.lang.{ Integer => JInt, Double => JDouble }
 
+import mesosphere.mesos.protos.Resource
 import mesosphere.marathon.api.validation.FieldConstraints._
 import mesosphere.marathon.health.HealthCheck
 import mesosphere.marathon.Protos.Constraint
@@ -35,11 +36,13 @@ case class AppUpdate(
 
     instances: Option[JInt] = None,
 
-    cpus: Option[JDouble] = None,
+    resources: Option[Map[String, JDouble]] = None,
 
-    mem: Option[JDouble] = None,
+    // cpus: Option[JDouble] = None,
 
-    disk: Option[JDouble] = None,
+    // mem: Option[JDouble] = None,
+
+    // disk: Option[JDouble] = None,
 
     executor: Option[String] = None,
 
@@ -78,6 +81,19 @@ case class AppUpdate(
     case _           => true
   }
 
+  def cpus: Option[JDouble] = resources match {
+    case Some(x) => Some(x(Resource.CPUS))
+    case _       => None
+  }
+  def mem: Option[JDouble] = resources match {
+    case Some(x) => Some(x(Resource.MEM))
+    case _       => None
+  }
+  def disk: Option[JDouble] = resources match {
+    case Some(x) => Some(x(Resource.DISK))
+    case _       => None
+  }
+
   /**
     * Returns the supplied [[mesosphere.marathon.state.AppDefinition]] after
     * updating its members with respect to this update request.
@@ -89,9 +105,10 @@ case class AppUpdate(
     user.orElse(app.user),
     env.getOrElse(app.env),
     instances.getOrElse(app.instances),
-    cpus.getOrElse(app.cpus),
-    mem.getOrElse(app.mem),
-    disk.getOrElse(app.disk),
+    resources.getOrElse(app.resources),
+    //cpus.getOrElse(app.cpus),
+    //mem.getOrElse(app.mem),
+    //disk.getOrElse(app.disk),
     executor.getOrElse(app.executor),
     constraints.getOrElse(app.constraints),
     uris.getOrElse(app.uris),

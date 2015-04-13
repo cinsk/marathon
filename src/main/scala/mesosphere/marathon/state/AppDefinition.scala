@@ -38,11 +38,13 @@ case class AppDefinition(
 
   @FieldMin(0) instances: JInt = AppDefinition.DefaultInstances,
 
-  cpus: JDouble = AppDefinition.DefaultCpus,
+  resources: Map[String, JDouble] = AppDefinition.DefaultResources,
 
-  mem: JDouble = AppDefinition.DefaultMem,
+  // cpus: JDouble = AppDefinition.DefaultCpus,
 
-  disk: JDouble = AppDefinition.DefaultDisk,
+  // mem: JDouble = AppDefinition.DefaultMem,
+
+  // disk: JDouble = AppDefinition.DefaultDisk,
 
   @FieldPattern(regexp = "^(//cmd)|(/?[^/]+(/[^/]+)*)|$") executor: String = AppDefinition.DefaultExecutor,
 
@@ -81,6 +83,10 @@ case class AppDefinition(
     portIndicesAreValid(),
     "Health check port indices must address an element of the ports array or container port mappings."
   )
+
+  def cpus: JDouble = resources(Resource.CPUS)
+  def mem: JDouble = resources(Resource.MEM)
+  def disk: JDouble = resources(Resource.DISK)
 
   /**
     * Returns true if all health check port index values are in the range
@@ -140,9 +146,12 @@ case class AppDefinition(
       }.toMap
 
     val resourcesMap: Map[String, JDouble] =
-      proto.getResourcesList.asScala.map {
-        r => r.getName -> (r.getScalar.getValue: JDouble)
-      }.toMap
+      Map[String, JDouble](Resource.CPUS -> AppDefinition.DefaultCpus,
+        Resource.MEM -> AppDefinition.DefaultMem,
+        Resource.DISK -> AppDefinition.DefaultDisk) ++
+        proto.getResourcesList.asScala.map {
+          r => r.getName -> (r.getScalar.getValue: JDouble)
+        }.toMap
 
     val commandOption =
       if (proto.getCmd.hasValue && proto.getCmd.getValue.nonEmpty)
@@ -176,9 +185,10 @@ case class AppDefinition(
       backoffFactor = proto.getBackoffFactor,
       maxLaunchDelay = proto.getMaxLaunchDelay.milliseconds,
       constraints = proto.getConstraintsList.asScala.toSet,
-      cpus = resourcesMap.getOrElse(Resource.CPUS, this.cpus),
-      mem = resourcesMap.getOrElse(Resource.MEM, this.mem),
-      disk = resourcesMap.getOrElse(Resource.DISK, this.disk),
+      resources = resourcesMap,
+      // cpus = resourcesMap.getOrElse(Resource.CPUS, this.cpus),
+      // mem = resourcesMap.getOrElse(Resource.MEM, this.mem),
+      // disk = resourcesMap.getOrElse(Resource.DISK, this.disk),
       env = envMap,
       uris = proto.getCmd.getUrisList.asScala.map(_.getValue).to[Seq],
       storeUrls = proto.getStoreUrlsList.asScala.to[Seq],
@@ -270,6 +280,12 @@ object AppDefinition {
 
   val DefaultDisk: Double = 0.0
 
+  // TODO cinsk: fill with default cpus, mem, and disk.
+  val DefaultResources: Map[String, JDouble] =
+    Map(Resource.CPUS -> DefaultCpus,
+      Resource.MEM -> DefaultMem,
+      Resource.DISK -> DefaultDisk)
+
   val DefaultExecutor: String = ""
 
   val DefaultConstraints: Set[Constraint] = Set.empty
@@ -307,8 +323,8 @@ object AppDefinition {
     runningDeployments: Seq[DeploymentPlan],
     private val app: AppDefinition)
       extends AppDefinition(
-        app.id, app.cmd, app.args, app.user, app.env, app.instances, app.cpus,
-        app.mem, app.disk, app.executor, app.constraints, app.uris,
+        app.id, app.cmd, app.args, app.user, app.env, app.instances,
+        app.resources, app.executor, app.constraints, app.uris,
         app.storeUrls, app.ports, app.requirePorts, app.backoff,
         app.backoffFactor, app.maxLaunchDelay, app.container,
         app.healthChecks, app.dependencies, app.upgradeStrategy,

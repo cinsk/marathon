@@ -10,6 +10,7 @@ import scala.concurrent.duration._
 import scala.util.Try
 import mesosphere.marathon.health.HealthCheck
 import mesosphere.marathon.state.AppDefinition
+import mesosphere.mesos.protos.Resource
 import org.joda.time.DateTime
 import scala.collection.JavaConverters._
 
@@ -216,7 +217,11 @@ trait SingleMarathonIntegrationTest extends ExternalMarathonIntegrationTest with
     val main = classOf[AppMock].getName
     val exec = Some(s"""$javaExecutable -classpath $classPath $main $appId $versionId http://localhost:${config.httpPort}/health$appId/$versionId""")
     val health = if (withHealth) Set(HealthCheck(gracePeriod = 20.second, interval = 1.second, maxConsecutiveFailures = 10)) else Set.empty[HealthCheck]
-    AppDefinition(appId, exec, executor = "//cmd", instances = instances, cpus = 0.5, mem = 128.0, healthChecks = health, dependencies = dependencies)
+    AppDefinition(appId, exec, executor = "//cmd", instances = instances,
+      resources = Map(Resource.CPUS -> 0.5,
+        Resource.MEM -> 128.0),
+      // cpus = 0.5, mem = 128.0,
+      healthChecks = health, dependencies = dependencies)
   }
 
   def appProxyCheck(appId: PathId, versionId: String, state: Boolean): IntegrationHealthCheck = {
