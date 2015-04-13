@@ -20,7 +20,7 @@ the new deployment request will be rejected.
 
 ## Basics
 
-Let us start with a simple example of a deployment; an app that prints `Hello Marathon` to stdout and then sleeps for 5 sec, in an endless loop.
+Let us start with a simple example of a deployment: an app that prints `Hello Marathon` to stdout and then sleeps for 5 sec, in an endless loop.
 You would use the following application resource (in JSON format) to describe the deployment: 
 
 ```json
@@ -36,7 +36,13 @@ You would use the following application resource (in JSON format) to describe th
 Note that `cmd` in the above example is the command that gets executed. 
 Its value is wrapped by the underlying [Mesos fetcher](https://github.com/apache/mesos/blob/master/src/launcher/fetcher.cpp) via `/bin/sh -c ${cmd}`.
 
-For any non-trivial deployment you typically depend on a collection of resources, that is files or and archives of files. To deal with this this, Marathon has the concept of `uris` and it leverages Mesos to do the legwork in terms of downloading (and potentially) extracting resources. But before we dive into this topic, let's have a look at an example:
+<p class="text-center">
+  <img src="{{ site.baseurl}}/img/marathon-basic-0.png" width="800" height="573" alt="Marathon deployment example: simple bash commands">
+</p>
+
+What happens here is that Marathon builds on Mesos' sandbox concept: a special directory on each slave that acts as the execution environment (from a storage perspective) and also contains relevant log files as well as `stderr` and `stdout` for the command being executed. See also the role of the sandbox in [debugging distributed apps](https://docs.mesosphere.com/tutorials/debugging-a-mesosphere-cluster/).
+
+For any non-trivial deployment you typically depend on a collection of resources, that is files or and archives of files. To deal with this, Marathon has the concept of `uris`. It leverages Mesos to do the legwork in terms of downloading (and potentially) extracting resources. But before we dive into this topic, let's have a look at an example:
 
 ```json
 {
@@ -91,6 +97,16 @@ Note also that you can specify many resources, not only one. So, for example, yo
     ...
 }
 ```
+
+A typical pattern in the development and deployment cycle is to have your automated build system place the app binary in a location that's downloadable via an URI. Marathon can download resources from a number of sources, supporting the following [URI schemes](http://tools.ietf.org/html/rfc3986#section-3.1):
+
+* `file:`
+* `http:`
+* `https:`
+* `ftp:`
+* `ftps:`
+* `hdfs:`
+* `s3:`
 
 
 ## Dependencies
