@@ -38,7 +38,7 @@ case class AppDefinition(
 
   @FieldMin(0) instances: JInt = AppDefinition.DefaultInstances,
 
-  resources: Map[String, JDouble] = AppDefinition.DefaultResources,
+  resources: Seq[mesos.Resource] = AppDefinition.DefaultResources,
 
   // cpus: JDouble = AppDefinition.DefaultCpus,
 
@@ -84,9 +84,24 @@ case class AppDefinition(
     "Health check port indices must address an element of the ports array or container port mappings."
   )
 
-  def cpus: JDouble = resources(Resource.CPUS)
-  def mem: JDouble = resources(Resource.MEM)
-  def disk: JDouble = resources(Resource.DISK)
+  def scalarResource(name: String, default: Double): Double = {
+    val cands = resources.flatMap { r =>
+      val res: Resource = r
+      res match {
+        case a @ ScalarResource(nam, value, role) => List(a)
+        case _                                    => Nil
+      }
+    }
+
+    cands.find { _.name == name } match {
+      case Some(res) => res.value
+      case _         => default
+    }
+  }
+
+  def cpus: JDouble = scalarResource(Resource.CPUS, AppDefinition.DefaultCpus)
+  def mem: JDouble = scalarResource(Resource.MEM, AppDefinition.DefaultMem)
+  def disk: JDouble = scalarResource(Resource.DISK, AppDefinition.DefaultDisk)
 
   /**
     * Returns true if all health check port index values are in the range
@@ -153,6 +168,9 @@ case class AppDefinition(
           r => r.getName -> (r.getScalar.getValue: JDouble)
         }.toMap
 
+    val resourcesSeq: Seq[mesos.Resource] =
+      proto.getResourcesList.asScala.toList.toSeq
+
     val commandOption =
       if (proto.getCmd.hasValue && proto.getCmd.getValue.nonEmpty)
         Some(proto.getCmd.getValue)
@@ -185,7 +203,7 @@ case class AppDefinition(
       backoffFactor = proto.getBackoffFactor,
       maxLaunchDelay = proto.getMaxLaunchDelay.milliseconds,
       constraints = proto.getConstraintsList.asScala.toSet,
-      resources = resourcesMap,
+      resources = resourcesSeq,
       // cpus = resourcesMap.getOrElse(Resource.CPUS, this.cpus),
       // mem = resourcesMap.getOrElse(Resource.MEM, this.mem),
       // disk = resourcesMap.getOrElse(Resource.DISK, this.disk),
@@ -281,10 +299,7 @@ object AppDefinition {
   val DefaultDisk: Double = 0.0
 
   // TODO cinsk: fill with default cpus, mem, and disk.
-  val DefaultResources: Map[String, JDouble] =
-    Map(Resource.CPUS -> DefaultCpus,
-      Resource.MEM -> DefaultMem,
-      Resource.DISK -> DefaultDisk)
+  val DefaultResources: Seq[mesos.Resource] = resourcesFrom()
 
   val DefaultExecutor: String = ""
 
@@ -316,6 +331,18 @@ object AppDefinition {
 
   def fromProto(proto: Protos.ServiceDefinition): AppDefinition =
     AppDefinition().mergeFromProto(proto)
+
+  def resourcesFrom(res: (String, Double)*) = {
+    import mesosphere.mesos.protos.Implicits._
+    import org.apache.mesos.{Protos => mesos}
+
+    val m = Map(Resource.CPUS -> DefaultCpus,
+                Resource.MEM -> DefaultMem,
+                Resource.DISK -> DefaultDisk) ++ res.toMap
+
+    (for ((name, value) <- m)
+     yield resourceToProto(ScalarResource(name, value))).toList.toSeq
+  }
 
   protected[marathon] class WithTaskCountsAndDeployments(
     appTasks: Seq[EnrichedTask],

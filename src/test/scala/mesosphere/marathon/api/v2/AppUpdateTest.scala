@@ -48,6 +48,8 @@ class AppUpdateTest extends MarathonSpec {
     import mesosphere.jackson.CaseClassModule
     import mesosphere.marathon.api.v2.json.MarathonModule
 
+    import mesosphere.marathon.state.AppDefinition
+    
     val mapper = new ObjectMapper
     mapper.registerModule(DefaultScalaModule)
     mapper.registerModule(new MarathonModule)
@@ -64,9 +66,9 @@ class AppUpdateTest extends MarathonSpec {
       user = Some("nobody"),
       env = Some(Map("LANG" -> "en-US")),
       instances = Some(16),
-      resources = Some(Map(Resource.CPUS -> 2.0,
-        Resource.CPUS -> 256.0,
-        Resource.CPUS -> 1024.0)),
+      resources = Some(AppDefinition.resourcesFrom(Resource.CPUS -> 2.0,
+                                                   Resource.MEM -> 256.0,
+                                                   Resource.DISK -> 1024.0)),
       // cpus = Some(2.0),
       // mem = Some(256.0),
       // disk = Some(1024.0),

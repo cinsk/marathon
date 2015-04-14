@@ -233,7 +233,7 @@ object MarathonModule {
       user: Option[String] = None,
       env: Option[Map[String, String]] = None,
       instances: Option[JInt] = None,
-      resources: Option[Map[String, JDouble]] = None,
+      resources: Option[Seq[mesos.Resource]] = None,
       // cpus: Option[JDouble] = None,
       // mem: Option[JDouble] = None,
       // disk: Option[JDouble] = None,

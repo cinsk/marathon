@@ -6,6 +6,7 @@ import mesosphere.mesos.protos.Resource
 import mesosphere.marathon.api.validation.FieldConstraints._
 import mesosphere.marathon.health.HealthCheck
 import mesosphere.marathon.Protos.Constraint
+import org.apache.mesos.{ Protos => mesos }
 import mesosphere.marathon.state.{
   AppDefinition,
   Container,
@@ -36,7 +37,7 @@ case class AppUpdate(
 
     instances: Option[JInt] = None,
 
-    resources: Option[Map[String, JDouble]] = None,
+    resources: Option[Seq[mesos.Resource]] = None,
 
     // cpus: Option[JDouble] = None,
 
@@ -81,18 +82,18 @@ case class AppUpdate(
     case _           => true
   }
 
-  def cpus: Option[JDouble] = resources match {
-    case Some(x) => Some(x(Resource.CPUS))
-    case _       => None
-  }
-  def mem: Option[JDouble] = resources match {
-    case Some(x) => Some(x(Resource.MEM))
-    case _       => None
-  }
-  def disk: Option[JDouble] = resources match {
-    case Some(x) => Some(x(Resource.DISK))
-    case _       => None
-  }
+  // def cpus: Option[JDouble] = resources match {
+  //   case Some(x) => Some(x(Resource.CPUS))
+  //   case _       => None
+  // }
+  // def mem: Option[JDouble] = resources match {
+  //   case Some(x) => Some(x(Resource.MEM))
+  //   case _       => None
+  // }
+  // def disk: Option[JDouble] = resources match {
+  //   case Some(x) => Some(x(Resource.DISK))
+  //   case _       => None
+  // }
 
   /**
     * Returns the supplied [[mesosphere.marathon.state.AppDefinition]] after

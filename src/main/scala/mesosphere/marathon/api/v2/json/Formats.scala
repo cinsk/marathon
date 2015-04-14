@@ -15,6 +15,7 @@ import mesosphere.marathon.upgrade._
 import mesosphere.mesos.protos._
 import org.apache.mesos.Protos.ContainerInfo.DockerInfo.Network
 import org.apache.mesos.{ Protos => mesos }
+import org.apache.mesos.Protos.{ Resource => ProtoResource }
 import play.api.data.validation.ValidationError
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
@@ -80,41 +81,6 @@ trait Formats
     val writes = Writes[mesos.Value] { value =>
       ValueWrites.writes(value)
     }
-    Format(reads, writes)
-  }
-
-  implicit lazy val ResourceFormat: Format[Resource] = {
-    val reads = new Reads[Resource] {
-      def reads(json: JsValue): JsResult[Resource] = json match {
-        case JsObject(pairs) =>
-          val name = (json \ "name").as[String]
-          val role = (json \ "role").asOpt[JsString].getOrElse(JsString("*")).as[String]
-          val value = (json \ "value")
-
-          value match {
-            case JsNumber(num) => JsSuccess(ScalarResource(name, num.toDouble, role))
-            case _             => JsError("Not supported yet")
-          }
-        case _ => JsError("Not supported yet")
-      }
-    }
-    val writes = Writes[Resource] {
-      case ScalarResource(name, value, role) =>
-        Json.toJson(Map("name" -> JsString(name),
-          "value" -> JsNumber(value),
-          "role" -> JsString(role)))
-      case SetResource(name, items, role) =>
-        Json.toJson(Map("name" -> JsString(name),
-          "role" -> JsString(role),
-          "value" -> Json.toJson(items.toList)))
-      case RangesResource(name, ranges, role) =>
-        // ranges: Seq[Range]
-        Json.toJson(Map("name" -> JsString(name),
-          "role" -> JsString(role),
-          "value" -> Json.toJson(for (r <- ranges)
-            yield JsArray(Seq(JsNumber(r.begin), JsNumber(r.end))))))
-    }
-
     Format(reads, writes)
   }
 
@@ -403,10 +369,107 @@ trait AppDefinitionFormats {
     }
   )
 
+
+  implicit lazy val ResourceFormat: Format[Resource] = {
+    val reads = new Reads[Resource] {
+      def reads(json: JsValue): JsResult[Resource] = json match {
+        case JsObject(pairs) =>
+          val name = (json \ "name").as[String]
+          val role = (json \ "role").asOpt[JsString].getOrElse(JsString("*")).as[String]
+          val value = (json \ "value")
+
+          value match {
+            case JsNumber(num) => JsSuccess(ScalarResource(name, num.toDouble, role))
+            case _             => JsError("Not supported yet")
+          }
+        case _ => JsError("Not supported yet")
+      }
+    }
+    val writes = Writes[Resource] {
+      case ScalarResource(name, value, role) =>
+        Json.toJson(Map("name" -> JsString(name),
+          "value" -> JsNumber(value),
+          "role" -> JsString(role)))
+      case SetResource(name, items, role) =>
+        Json.toJson(Map("name" -> JsString(name),
+          "role" -> JsString(role),
+          "value" -> Json.toJson(items.toList)))
+      case RangesResource(name, ranges, role) =>
+        // ranges: Seq[Range]
+        Json.toJson(Map("name" -> JsString(name),
+          "role" -> JsString(role),
+          "value" -> Json.toJson(for (r <- ranges)
+            yield JsArray(Seq(JsNumber(r.begin), JsNumber(r.end))))))
+    }
+
+    Format(reads, writes)
+  }
+
+  implicit lazy val ProtoResourceFormat: Format[ProtoResource] = {
+    val reads = new Reads[ProtoResource] {
+      def reads(json: JsValue): JsResult[ProtoResource] = json match {
+        case JsObject(pairs) =>
+          val name = (json \ "name").as[String]
+          val role = (json \ "role").asOpt[JsString].getOrElse(JsString("*")).as[String]
+          val value = (json \ "value")
+
+          val builder = ProtoResource
+            .newBuilder()
+            .setName(name)
+            .setRole(role)
+
+          value match {
+            case JsNumber(num) => JsSuccess(builder
+              .setType(mesos.Value.Type.SCALAR)
+              .setScalar(mesos.Value.Scalar
+                .newBuilder()
+                .setValue(num.toDouble)
+                .build())
+              .build())
+            case _ => JsError("Not supported yet")
+          }
+        case _ => JsError("Not supported yet")
+      }
+    }
+    val writes = new Writes[ProtoResource] {
+        def writes(r: ProtoResource): JsValue = {
+          import mesosphere.mesos.protos.Implicits._
+          val res: Resource = r
+
+          res match {
+            case ScalarResource(name, value, role) =>
+              Json.toJson(Map("name" -> JsString(name),
+                              "value" -> JsNumber(value),
+                              "role" -> JsString(role)))
+            case SetResource(name, items, role) =>
+              Json.toJson(Map("name" -> JsString(name),
+                              "role" -> JsString(role),
+                              "value" -> Json.toJson(items.toList)))
+            case RangesResource(name, ranges, role) =>
+              // ranges: Seq[Range]
+              Json.toJson(Map("name" -> JsString(name),
+                              "role" -> JsString(role),
+                              "value" -> Json.toJson(for (r <- ranges)
+                                                     yield JsArray(Seq(JsNumber(r.begin), JsNumber(r.end))))))
+          }
+        }
+      }
+    Format(reads, writes)
+  }
+
+  // val p = (__ \ "tmp").readNullable[ProtoResource]
+  // val q = (__ \ "tmp").readNullable[Constraint]
+  // val r: JsResult[ProtoResource] = ProtoResourceFormat.reads(Json.parse(""""""))
+  // 
+  // val respath = (__ \ "resources").readNullable[Seq[ProtoResource]].withDefault(AppDefinition.DefaultResources)
+
   implicit lazy val AppDefinitionReads: Reads[AppDefinition] = {
     import mesosphere.marathon.state.AppDefinition._
 
     val executorPattern = "^(//cmd)|(/?[^/]+(/[^/]+)*)|$".r
+
+    // val r = (__ \ "tmp").readNullable[ProtoResource]
+    // val s = (__ \ "tmp").readNullable[Constraint]
 
     (
       (__ \ "id").read[PathId].filterNot(_.isRoot) ~
@@ -415,7 +478,7 @@ trait AppDefinitionFormats {
       (__ \ "user").readNullable[String] ~
       (__ \ "env").readNullable[Map[String, String]].withDefault(DefaultEnv) ~
       (__ \ "instances").readNullable[Integer](minValue(0)).withDefault(DefaultInstances) ~
-      (__ \ "resources").readNullable[Map[String, JDouble]].withDefault(DefaultResources) ~
+      (__ \ "resources").readNullable[Seq[ProtoResource]].withDefault(DefaultResources) ~
       // (__ \ "cpus").readNullable[JDouble](greaterThan(0.0)).withDefault(DefaultCpus) ~
       // (__ \ "mem").readNullable[JDouble].withDefault(DefaultMem) ~
       // (__ \ "disk").readNullable[JDouble].withDefault(DefaultDisk) ~
@@ -506,7 +569,7 @@ trait AppDefinitionFormats {
       (__ \ "user").readNullable[String] ~
       (__ \ "env").readNullable[Map[String, String]] ~
       (__ \ "instances").readNullable[Integer](minValue(0)) ~
-      (__ \ "resources").readNullable[Map[String, JDouble]] ~
+      (__ \ "resources").readNullable[Seq[mesos.Resource]] ~
       // (__ \ "cpus").readNullable[JDouble](greaterThan(0.0)) ~
       // (__ \ "mem").readNullable[JDouble] ~
       // (__ \ "disk").readNullable[JDouble] ~
