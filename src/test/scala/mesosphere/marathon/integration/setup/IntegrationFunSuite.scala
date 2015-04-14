@@ -220,7 +220,7 @@ trait SingleMarathonIntegrationTest extends ExternalMarathonIntegrationTest with
 
     AppDefinition(appId, exec, executor = "//cmd", instances = instances,
       resources = AppDefinition.resourcesFrom(Resource.CPUS -> 0.5,
-                                              Resource.MEM -> 128.0),
+        Resource.MEM -> 128.0),
       // cpus = 0.5, mem = 128.0,
       healthChecks = health, dependencies = dependencies)
   }

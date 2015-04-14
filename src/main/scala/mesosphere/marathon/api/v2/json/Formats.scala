@@ -369,7 +369,6 @@ trait AppDefinitionFormats {
     }
   )
 
-
   implicit lazy val ResourceFormat: Format[Resource] = {
     val reads = new Reads[Resource] {
       def reads(json: JsValue): JsResult[Resource] = json match {
@@ -432,28 +431,28 @@ trait AppDefinitionFormats {
       }
     }
     val writes = new Writes[ProtoResource] {
-        def writes(r: ProtoResource): JsValue = {
-          import mesosphere.mesos.protos.Implicits._
-          val res: Resource = r
+      def writes(r: ProtoResource): JsValue = {
+        import mesosphere.mesos.protos.Implicits._
+        val res: Resource = r
 
-          res match {
-            case ScalarResource(name, value, role) =>
-              Json.toJson(Map("name" -> JsString(name),
-                              "value" -> JsNumber(value),
-                              "role" -> JsString(role)))
-            case SetResource(name, items, role) =>
-              Json.toJson(Map("name" -> JsString(name),
-                              "role" -> JsString(role),
-                              "value" -> Json.toJson(items.toList)))
-            case RangesResource(name, ranges, role) =>
-              // ranges: Seq[Range]
-              Json.toJson(Map("name" -> JsString(name),
-                              "role" -> JsString(role),
-                              "value" -> Json.toJson(for (r <- ranges)
-                                                     yield JsArray(Seq(JsNumber(r.begin), JsNumber(r.end))))))
-          }
+        res match {
+          case ScalarResource(name, value, role) =>
+            Json.toJson(Map("name" -> JsString(name),
+              "value" -> JsNumber(value),
+              "role" -> JsString(role)))
+          case SetResource(name, items, role) =>
+            Json.toJson(Map("name" -> JsString(name),
+              "role" -> JsString(role),
+              "value" -> Json.toJson(items.toList)))
+          case RangesResource(name, ranges, role) =>
+            // ranges: Seq[Range]
+            Json.toJson(Map("name" -> JsString(name),
+              "role" -> JsString(role),
+              "value" -> Json.toJson(for (r <- ranges)
+                yield JsArray(Seq(JsNumber(r.begin), JsNumber(r.end))))))
         }
       }
+    }
     Format(reads, writes)
   }
 

@@ -68,8 +68,8 @@ trait MarathonTestHelper {
     AppDefinition(
       id = "test-app".toPath,
       resources = AppDefinition.resourcesFrom(Resource.CPUS -> 1,
-                                              Resource.MEM -> 64,
-                                              Resource.DISK -> 1),
+        Resource.MEM -> 64,
+        Resource.DISK -> 1),
       // cpus = 1,
       // mem = 64,
       // disk = 1,

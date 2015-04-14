@@ -332,16 +332,17 @@ object AppDefinition {
   def fromProto(proto: Protos.ServiceDefinition): AppDefinition =
     AppDefinition().mergeFromProto(proto)
 
-  def resourcesFrom(res: (String, Double)*) = {
+  import org.apache.mesos.{ Protos => mesos }
+
+  def resourcesFrom(res: (String, Double)*): scala.collection.immutable.Seq[mesos.Resource] = {
     import mesosphere.mesos.protos.Implicits._
-    import org.apache.mesos.{Protos => mesos}
 
     val m = Map(Resource.CPUS -> DefaultCpus,
-                Resource.MEM -> DefaultMem,
-                Resource.DISK -> DefaultDisk) ++ res.toMap
+      Resource.MEM -> DefaultMem,
+      Resource.DISK -> DefaultDisk) ++ res.toMap
 
     (for ((name, value) <- m)
-     yield resourceToProto(ScalarResource(name, value))).toList.toSeq
+      yield resourceToProto(ScalarResource(name, value))).toList.toSeq
   }
 
   protected[marathon] class WithTaskCountsAndDeployments(
