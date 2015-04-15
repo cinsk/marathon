@@ -418,13 +418,19 @@ trait AppDefinitionFormats {
             .setRole(role)
 
           value match {
-            case JsNumber(num) => JsSuccess(builder
-              .setType(mesos.Value.Type.SCALAR)
-              .setScalar(mesos.Value.Scalar
-                .newBuilder()
-                .setValue(num.toDouble)
-                .build())
-              .build())
+            case JsNumber(num) =>
+              name match {
+                case Resource.CPUS if (num <= 0.0) =>
+                  JsError(s"${Resource.CPUS} should be larger than zero")
+                case _ =>
+                  JsSuccess(builder
+                    .setType(mesos.Value.Type.SCALAR)
+                    .setScalar(mesos.Value.Scalar
+                      .newBuilder()
+                      .setValue(num.toDouble)
+                      .build())
+                    .build())
+              }
             case _ => JsError("Not supported yet")
           }
         case _ => JsError("Not supported yet")
@@ -477,6 +483,16 @@ trait AppDefinitionFormats {
       (__ \ "user").readNullable[String] ~
       (__ \ "env").readNullable[Map[String, String]].withDefault(DefaultEnv) ~
       (__ \ "instances").readNullable[Integer](minValue(0)).withDefault(DefaultInstances) ~
+      // (__ \ "resources").readNullable[Seq[ProtoResource]].withDefault(DefaultResources).flatMap {
+      //   rseq =>
+      //     rseq.find(r => r.getName() == "cpus") match {
+      //       case Some(x) if (x.getScalar().getValue().toDouble >= 0.0) =>
+      //         implicitly[Reads[Seq[ProtoResource]]]
+      //       case _ => new Reads[Seq[ProtoResource]] {
+      //         def reads(json: JsValue) = { JsError("") }
+      //       }
+      //     }
+      // } ~
       (__ \ "resources").readNullable[Seq[ProtoResource]].withDefault(DefaultResources) ~
       // (__ \ "cpus").readNullable[JDouble](greaterThan(0.0)).withDefault(DefaultCpus) ~
       // (__ \ "mem").readNullable[JDouble].withDefault(DefaultMem) ~

@@ -46,9 +46,10 @@ class AppDefinitionFormatsTest
     r1 \ "user" should equal (JsNull)
     r1 \ "env" should equal (JsObject(DefaultEnv.mapValues(JsString(_)).toSeq))
     r1 \ "instances" should equal (JsNumber(DefaultInstances))
-    r1 \ "cpus" should equal (JsNumber(DefaultCpus))
-    r1 \ "mem" should equal (JsNumber(DefaultMem))
-    r1 \ "disk" should equal (JsNumber(DefaultDisk))
+    r1 \ "resources" should equal (Json.toJson(DefaultResources))
+    // r1 \ "cpus" should equal (JsNumber(DefaultCpus))
+    // r1 \ "mem" should equal (JsNumber(DefaultMem))
+    // r1 \ "disk" should equal (JsNumber(DefaultDisk))
     r1 \ "executor" should equal (JsString(DefaultExecutor))
     r1 \ "constraints" should equal (Json.toJson(DefaultConstraints))
     r1 \ "uris" should equal (Json.toJson(DefaultUris))
@@ -107,10 +108,24 @@ class AppDefinitionFormatsTest
   }
 
   test("FromJSON should fail when 'cpus' is less than or equal to 0") {
-    var json1 = Json.parse(""" { "id": "test", "cpus": 0.0 }""")
+    // var json1 = Json.parse(""" { "id": "test", "cpus": 0.0 }""")
+    // a[JsResultException] shouldBe thrownBy { json1.as[AppDefinition] }
+    // 
+    // val json2 = Json.parse(""" { "id": "test", "cpus": -1.0 }""")
+    // a[JsResultException] shouldBe thrownBy { json2.as[AppDefinition] }
+
+    var json1 = Json.parse("""
+{ "id": "test",
+  "resources": [ { "name": "cpus",
+                   "value": 0.0 } ] }
+""")
     a[JsResultException] shouldBe thrownBy { json1.as[AppDefinition] }
 
-    val json2 = Json.parse(""" { "id": "test", "cpus": -1.0 }""")
+    val json2 = Json.parse("""
+{ "id": "test",
+  "resources": [ { "name": "cpus",
+                   "value": -1.0 } ] }
+""")
     a[JsResultException] shouldBe thrownBy { json2.as[AppDefinition] }
   }
 }
