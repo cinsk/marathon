@@ -77,31 +77,30 @@ case class AppDefinition(
   version: Timestamp = Timestamp.now()) extends MarathonState[Protos.ServiceDefinition, AppDefinition]
     with Timestamped {
 
-  import mesosphere.mesos.protos.Implicits._
-
   assert(
     portIndicesAreValid(),
     "Health check port indices must address an element of the ports array or container port mappings."
   )
 
-  def scalarResource(name: String, default: Double): Double = {
-    val cands = resources.flatMap { r =>
-      val res: Resource = r
-      res match {
-        case a @ ScalarResource(nam, value, role) => List(a)
-        case _                                    => Nil
-      }
-    }
-
-    cands.find { _.name == name } match {
-      case Some(res) => res.value
-      case _         => default
-    }
+  lazy val resourcesMap: Map[String, Resource] = {
+    import mesosphere.mesos.protos.Implicits._
+    resources.map { r => (r.getName(), implicitly[Resource](r)) }.toMap
   }
 
-  def cpus: JDouble = scalarResource(Resource.CPUS, AppDefinition.DefaultCpus)
-  def mem: JDouble = scalarResource(Resource.MEM, AppDefinition.DefaultMem)
-  def disk: JDouble = scalarResource(Resource.DISK, AppDefinition.DefaultDisk)
+  def cpus: JDouble = resourcesMap.get(Resource.CPUS) match {
+    case Some(ScalarResource(_, value, _)) => value
+    case _                                 => AppDefinition.DefaultCpus
+  }
+
+  def mem: JDouble = resourcesMap.get(Resource.MEM) match {
+    case Some(ScalarResource(_, value, _)) => value
+    case _                                 => AppDefinition.DefaultMem
+  }
+
+  def disk: JDouble = resourcesMap.get(Resource.DISK) match {
+    case Some(ScalarResource(_, value, _)) => value
+    case _                                 => AppDefinition.DefaultDisk
+  }
 
   /**
     * Returns true if all health check port index values are in the range
@@ -116,6 +115,8 @@ case class AppDefinition(
   }
 
   def toProto: Protos.ServiceDefinition = {
+    import mesosphere.mesos.protos.Implicits._
+
     val commandInfo = TaskBuilder.commandInfo(this, None, None, Seq.empty)
     val cpusResource = ScalarResource(Resource.CPUS, cpus)
     val memResource = ScalarResource(Resource.MEM, mem)
@@ -160,13 +161,13 @@ case class AppDefinition(
         v => v.getName -> v.getValue
       }.toMap
 
-    val resourcesMap: Map[String, JDouble] =
-      Map[String, JDouble](Resource.CPUS -> AppDefinition.DefaultCpus,
-        Resource.MEM -> AppDefinition.DefaultMem,
-        Resource.DISK -> AppDefinition.DefaultDisk) ++
-        proto.getResourcesList.asScala.map {
-          r => r.getName -> (r.getScalar.getValue: JDouble)
-        }.toMap
+    // val resourcesMap: Map[String, JDouble] =
+    //   Map[String, JDouble](Resource.CPUS -> AppDefinition.DefaultCpus,
+    //     Resource.MEM -> AppDefinition.DefaultMem,
+    //     Resource.DISK -> AppDefinition.DefaultDisk) ++
+    //     proto.getResourcesList.asScala.map {
+    //       r => r.getName -> (r.getScalar.getValue: JDouble)
+    //     }.toMap
 
     val resourcesSeq: Seq[mesos.Resource] =
       proto.getResourcesList.asScala.toList.toSeq
