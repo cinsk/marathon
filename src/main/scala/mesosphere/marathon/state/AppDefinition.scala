@@ -2,7 +2,7 @@ package mesosphere.marathon.state
 
 import java.lang.{ Double => JDouble, Integer => JInt }
 
-import com.fasterxml.jackson.annotation.{ JsonIgnoreProperties, JsonProperty }
+import com.fasterxml.jackson.annotation.{ JsonIgnore, JsonIgnoreProperties, JsonProperty }
 import mesosphere.marathon.Protos.Constraint
 import mesosphere.marathon.api.v2.json.EnrichedTask
 import mesosphere.marathon.api.validation.FieldConstraints._
@@ -82,7 +82,7 @@ case class AppDefinition(
     "Health check port indices must address an element of the ports array or container port mappings."
   )
 
-  lazy val resourcesMap: Map[String, Resource] = {
+  @JsonIgnore lazy val resourcesMap: Map[String, Resource] = {
     import mesosphere.mesos.protos.Implicits._
     resources.map { r => (r.getName(), implicitly[Resource](r)) }.toMap
   }
@@ -301,6 +301,7 @@ object AppDefinition {
 
   // TODO cinsk: fill with default cpus, mem, and disk.
   val DefaultResources: Seq[mesos.Resource] = resourcesFrom()
+  val DefaultRole: String = "*"
 
   val DefaultExecutor: String = ""
 
