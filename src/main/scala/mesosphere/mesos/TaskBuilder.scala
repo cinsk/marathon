@@ -36,29 +36,48 @@ class TaskBuilder(app: AppDefinition,
 
     val portsMatcher = new PortsMatcher(app, offer)
 
-    val offeredMap = offer.getResourcesList().asScala.map {
-      r => (r.getName(), implicitly[Resource](r))
-    }.toMap
+    val offeredSeq = offer.getResourcesList().asScala.map {
+      r => implicitly[Resource](r)
+    }.toSeq
 
     val result = (for ((name, neededRes) <- app.resourcesMap) yield {
       if (name == Resource.PORTS) {
         // TODO: for the Resource.PORTS, use PortsMatcher instead of transformNeeds
         portsMatcher.portRanges match {
           case Some(rangeRes) => (name, rangeRes)
-          case _              => return None
+          case None =>
+            log.warn("App ports are not available in the offer.")
+            return None
         }
       }
       else {
-        offeredMap.get(name) match {
-          case Some(offeredRes) => transformNeeds(neededRes, offeredRes) match {
-            case Some(takenRes) => (name, takenRes)
-            case _              => return None
-          }
-          case _ => return None
+        val takenResOption = offeredSeq.find {
+          offeredRes => transformNeeds(neededRes, offeredRes).isDefined
+        }
+
+        takenResOption match {
+          case Some(takenRes) => (name, takenRes)
+          case None           => return None
         }
       }
     }).toMap
 
+    val badConstraints: Set[Constraint] = {
+      val runningTasks = taskTracker.get(app.id)
+      app.constraints.filterNot { constraint =>
+        Constraints.meetsConstraint(runningTasks, offer, constraint)
+      }
+    }
+
+    if (badConstraints.nonEmpty) {
+      log.warn(
+        s"Offer did not satisfy constraints for app [${app.id}].\n" +
+          s"Conflicting constraints are: [${badConstraints.mkString(", ")}]"
+      )
+      return None
+    }
+
+    log.debug("Met all constraints.")
     Some(result)
   }
 
@@ -90,8 +109,9 @@ class TaskBuilder(app: AppDefinition,
       .setTaskId(taskId)
       .setSlaveId(offer.getSlaveId)
 
-    for ((_, resNeeded) <- neededMap)
+    for ((_, resNeeded) <- neededMap) {
       builder.addResources(resNeeded)
+    }
 
     val containerProto: Option[ContainerInfo] =
       app.container.map { c =>

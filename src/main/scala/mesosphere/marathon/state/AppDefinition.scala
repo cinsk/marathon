@@ -14,7 +14,7 @@ import mesosphere.marathon.Protos
 import mesosphere.marathon.Protos.HealthCheckDefinition.Protocol
 import mesosphere.marathon.upgrade.DeploymentPlan
 import mesosphere.mesos.TaskBuilder
-import mesosphere.mesos.protos.{ Resource, ScalarResource }
+import mesosphere.mesos.protos.{ Range, RangesResource, Resource, ScalarResource }
 import org.apache.mesos.Protos.ContainerInfo.DockerInfo.Network
 import org.apache.mesos.{ Protos => mesos }
 import scala.collection.immutable.Seq
@@ -84,7 +84,19 @@ case class AppDefinition(
 
   @JsonIgnore lazy val resourcesMap: Map[String, Resource] = {
     import mesosphere.mesos.protos.Implicits._
-    resources.map { r => (r.getName(), implicitly[Resource](r)) }.toMap
+    val portsRanges = (for (port <- ports) yield Range(port.toLong, port.toLong)).to[Seq]
+
+    val portsResource = portsRanges.length match {
+      case 0 => None
+      case _ => Some(RangesResource(Resource.PORTS, portsRanges))
+    }
+
+    val resMap = resources.map { r => (r.getName(), implicitly[Resource](r)) }.toMap
+
+    portsResource match {
+      case Some(r) => resMap + (Resource.PORTS -> implicitly[Resource](r))
+      case _       => resMap
+    }
   }
 
   def cpus: JDouble = resourcesMap.get(Resource.CPUS) match {
