@@ -51,13 +51,14 @@ class TaskBuilder(app: AppDefinition,
         }
       }
       else {
-        val takenResOption = offeredSeq.find {
+        // TODO: it calls transformNeeds() twice
+        val takenOfferOption = offeredSeq.find {
           offeredRes => transformNeeds(neededRes, offeredRes).isDefined
         }
 
-        takenResOption match {
-          case Some(takenRes) => (name, takenRes)
-          case None           => return None
+        takenOfferOption match {
+          case Some(takenOffer) => (name, transformNeeds(neededRes, takenOffer).get)
+          case None             => return None
         }
       }
     }).toMap
@@ -391,10 +392,12 @@ class TaskBuilder(app: AppDefinition,
               // offered: set of "foo", "bar", "car"
               // request: set of "foo", "bar"
               val took = itemsOffered.take(value.ceil.toInt)
-              if (took.size == value.ceil.toInt)
+              if (took.size == value.ceil.toInt) {
                 Some(SetResource(name, took, roleOffered))
-              else
+              }
+              else {
                 None
+              }
           }
         case RangesResource(name, ranges, role) =>
           offered match {
