@@ -15,7 +15,8 @@ import mesosphere.marathon.api.v2._
 import mesosphere.marathon.api.validation.FieldConstraints._
 import mesosphere.marathon.health.HealthCheck
 import mesosphere.marathon.state.PathId._
-import mesosphere.marathon.state.{ Container, PathId, Timestamp, UpgradeStrategy }
+import mesosphere.marathon.state.{ AppDefinition, Container, PathId, Timestamp, UpgradeStrategy }
+import mesosphere.mesos.protos._
 
 import scala.collection.immutable.Seq
 import scala.concurrent.duration.FiniteDuration
@@ -31,6 +32,8 @@ class MarathonModule extends Module {
   private val appUpdateClass = classOf[AppUpdate]
   private val groupIdClass = classOf[PathId]
   private val taskIdClass = classOf[mesos.TaskID]
+  private val mesosResourceClass = classOf[mesos.Resource]
+  //  private val resourceClass = classOf[mesosphere.mesos.protos.Resource]
 
   def getModuleName: String = "MarathonModule"
 
@@ -50,6 +53,8 @@ class MarathonModule extends Module {
         else if (matches(finiteDurationClass)) FiniteDurationSerializer
         else if (matches(groupIdClass)) PathIdSerializer
         else if (matches(taskIdClass)) TaskIdSerializer
+        //        else if (matches(resourceClass)) ResourceSerializer
+        else if (matches(mesosResourceClass)) MesosResourceSerializer
         else null
       }
     })
@@ -67,6 +72,8 @@ class MarathonModule extends Module {
         else if (matches(appUpdateClass)) AppUpdateDeserializer
         else if (matches(groupIdClass)) PathIdDeserializer
         else if (matches(taskIdClass)) TaskIdDeserializer
+        //        else if (matches(resourceClass)) ResourceDeserializer
+        else if (matches(mesosResourceClass)) MesosResourceDeserializer
         else null
       }
     })
@@ -198,6 +205,70 @@ class MarathonModule extends Module {
     def deserialize(json: JsonParser, context: DeserializationContext): mesos.TaskID = {
       val tree: JsonNode = json.getCodec.readTree(json)
       mesos.TaskID.newBuilder.setValue(tree.textValue).build
+    }
+  }
+
+  object MesosResourceSerializer extends JsonSerializer[mesos.Resource] {
+    def serialize(resource: mesos.Resource, jgen: JsonGenerator, provider: SerializerProvider) {
+      jgen.writeStartObject()
+      jgen.writeStringField("name", resource.getName)
+
+      if (resource.hasScalar) {
+        jgen.writeNumberField("value", resource.getScalar.getValue)
+      }
+
+      if (resource.hasRole) {
+        jgen.writeObjectField("role", resource.getRole)
+      }
+      else {
+        jgen.writeObjectField("role", AppDefinition.DefaultRole)
+      }
+
+      jgen.writeEndObject()
+    }
+  }
+
+  object MesosResourceDeserializer extends JsonDeserializer[mesos.Resource] {
+    def deserialize(json: JsonParser, context: DeserializationContext): mesos.Resource = {
+      val tree: JsonNode = json.getCodec.readTree(json)
+      val builder = mesos.Resource.newBuilder
+
+      builder.setName(tree.get("name").asText())
+
+      val value: JsonNode = tree.get("value")
+      if (value.isDouble) {
+        builder.setType(mesos.Value.Type.SCALAR)
+          .setScalar(mesos.Value.Scalar.newBuilder().setValue(value.asDouble).build)
+      }
+      // RangesResource??
+      // SetResource??
+
+      val role: JsonNode = tree.get("role")
+      if (role != null) {
+        builder.setRole(role.asText)
+      }
+      else {
+        builder.setRole(mesosphere.marathon.state.AppDefinition.DefaultRole)
+      }
+
+      builder.build
+    }
+  }
+
+  object ResourceDeserializer extends JsonDeserializer[Resource] {
+    def deserialize(json: JsonParser, context: DeserializationContext): Resource = {
+      val tree: JsonNode = json.getCodec.readTree(json)
+
+      val restype = tree.get("name").asText match {
+        case "cpus" => mesosphere.mesos.protos.Resource.CPUS
+        case "mem"  => mesosphere.mesos.protos.Resource.MEM
+        case "disk" => mesosphere.mesos.protos.Resource.DISK
+      }
+
+      val value = tree.get("name").asDouble
+      val role = tree.get("role").asText
+
+      ScalarResource(restype, value, role)
     }
   }
 

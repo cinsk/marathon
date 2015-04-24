@@ -283,26 +283,26 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
     )
   }
 
-  if (false) {
-    test("SerializationRoundtrip") {
-      import com.fasterxml.jackson.databind.ObjectMapper
-      import com.fasterxml.jackson.module.scala.DefaultScalaModule
-      import mesosphere.jackson.CaseClassModule
-      import mesosphere.marathon.api.v2.json.MarathonModule
+  test("SerializationRoundtrip") {
+    import com.fasterxml.jackson.databind.ObjectMapper
+    import com.fasterxml.jackson.module.scala.DefaultScalaModule
+    import mesosphere.jackson.CaseClassModule
+    import mesosphere.marathon.api.v2.json.MarathonModule
 
-      val mapper = new ObjectMapper
-      mapper.registerModule(DefaultScalaModule)
-      mapper.registerModule(new MarathonModule)
-      mapper.registerModule(CaseClassModule)
+    val mapper = new ObjectMapper
+    mapper.registerModule(DefaultScalaModule)
+    mapper.registerModule(new MarathonModule)
+    mapper.registerModule(CaseClassModule)
 
-      val app1 = AppDefinition()
-      assert(app1.cmd.isEmpty)
-      assert(app1.args.isEmpty)
-      val json1 = mapper.writeValueAsString(app1)
-      val readResult1 = mapper.readValue(json1, classOf[AppDefinition])
-      assert(readResult1 == app1)
+    val app1 = AppDefinition()
+    assert(app1.cmd.isEmpty)
+    assert(app1.args.isEmpty)
+    val json1 = mapper.writeValueAsString(app1)
+    val readResult1 = mapper.readValue(json1, classOf[AppDefinition])
+    println("===== result#1")
+    assert(readResult1 == app1)
 
-      val json2 = """
+    val json2 = """
         {
           "id": "toggle",
           "cmd": "python toggle.py $PORT0",
@@ -323,67 +323,69 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
           "uris": ["http://downloads.mesosphere.com/misc/toggle.tgz"]
         }
       """
-      val readResult2 = mapper.readValue(json2, classOf[AppDefinition])
-      assert(readResult2.healthChecks.head.command.isDefined)
+    val readResult2 = mapper.readValue(json2, classOf[AppDefinition])
+    println("===== result#2")
+    assert(readResult2.healthChecks.head.command.isDefined)
 
-      val app3 = AppDefinition(
-        id = PathId("/prod/product/frontend/my-app"),
-        cmd = Some("sleep 30"),
-        user = Some("nobody"),
-        env = Map("key1" -> "value1", "key2" -> "value2"),
-        instances = 5,
-        resources = AppDefinition.resourcesFrom(Resource.CPUS -> 5.0,
-          Resource.MEM -> 55.0,
-          Resource.DISK -> 550.0),
-        // cpus = 5.0,
-        // mem = 55.0,
-        // disk = 550.0,
-        executor = "",
-        constraints = Set(
-          Constraint.newBuilder
-            .setField("attribute")
-            .setOperator(Constraint.Operator.GROUP_BY)
-            .setValue("value")
-            .build
-        ),
-        uris = Seq("hdfs://path/to/resource.zip"),
-        storeUrls = Seq("http://my.org.com/artifacts/foo.bar"),
-        ports = Seq(9001, 9002),
-        requirePorts = true,
-        backoff = 5.seconds,
-        backoffFactor = 1.5,
-        maxLaunchDelay = 3.minutes,
-        container = Some(
-          Container(docker = Some(Container.Docker("group/image")))
-        ),
-        healthChecks = Set(HealthCheck()),
-        dependencies = Set(PathId("/prod/product/backend")),
-        upgradeStrategy = UpgradeStrategy(minimumHealthCapacity = 0.75)
-      )
-      val json3 = mapper.writeValueAsString(app3)
-      val readResult3 = mapper.readValue(json3, classOf[AppDefinition])
-      assert(readResult3 == app3)
+    val app3 = AppDefinition(
+      id = PathId("/prod/product/frontend/my-app"),
+      cmd = Some("sleep 30"),
+      user = Some("nobody"),
+      env = Map("key1" -> "value1", "key2" -> "value2"),
+      instances = 5,
+      resources = AppDefinition.resourcesFrom(Resource.CPUS -> 5.0,
+        Resource.MEM -> 55.0,
+        Resource.DISK -> 550.0),
+      // cpus = 5.0,
+      // mem = 55.0,
+      // disk = 550.0,
+      executor = "",
+      constraints = Set(
+        Constraint.newBuilder
+          .setField("attribute")
+          .setOperator(Constraint.Operator.GROUP_BY)
+          .setValue("value")
+          .build
+      ),
+      uris = Seq("hdfs://path/to/resource.zip"),
+      storeUrls = Seq("http://my.org.com/artifacts/foo.bar"),
+      ports = Seq(9001, 9002),
+      requirePorts = true,
+      backoff = 5.seconds,
+      backoffFactor = 1.5,
+      maxLaunchDelay = 3.minutes,
+      container = Some(
+        Container(docker = Some(Container.Docker("group/image")))
+      ),
+      healthChecks = Set(HealthCheck()),
+      dependencies = Set(PathId("/prod/product/backend")),
+      upgradeStrategy = UpgradeStrategy(minimumHealthCapacity = 0.75)
+    )
+    val json3 = mapper.writeValueAsString(app3)
+    val readResult3 = mapper.readValue(json3, classOf[AppDefinition])
+    println("===== result#3")
+    assert(readResult3 == app3)
 
-      import java.lang.{ Integer => JInt }
+    import java.lang.{ Integer => JInt }
 
-      import mesosphere.marathon.state.Container.Docker.PortMapping
-      import org.apache.mesos.Protos.ContainerInfo.DockerInfo.Network
+    import mesosphere.marathon.state.Container.Docker.PortMapping
+    import org.apache.mesos.Protos.ContainerInfo.DockerInfo.Network
 
-      val app4 = AppDefinition(
-        id = "bridged-webapp".toPath,
-        cmd = Some("python3 -m http.server 8080"),
-        container = Some(Container(
-          docker = Some(Docker(
-            image = "python:3",
-            network = Some(Network.BRIDGE),
-            portMappings = Some(Seq(
-              PortMapping(containerPort = 8080, hostPort = 0, servicePort = 9000, protocol = "tcp")
-            ))
+    val app4 = AppDefinition(
+      id = "bridged-webapp".toPath,
+      cmd = Some("python3 -m http.server 8080"),
+      container = Some(Container(
+        docker = Some(Docker(
+          image = "python:3",
+          network = Some(Network.BRIDGE),
+          portMappings = Some(Seq(
+            PortMapping(containerPort = 8080, hostPort = 0, servicePort = 9000, protocol = "tcp")
           ))
         ))
-      )
+      ))
+    )
 
-      val json4 = """
+    val json4 = """
         {
           "id": "bridged-webapp",
           "cmd": "python3 -m http.server 8080",
@@ -399,12 +401,13 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
           }
         }
       """
-      val readResult4 = mapper.readValue(json4, classOf[AppDefinition])
-      assert(readResult4.copy(version = app4.version) == app4)
-    }
+    val readResult4 = mapper.readValue(json4, classOf[AppDefinition])
+    println("===== result#4")
+    assert(readResult4.copy(version = app4.version) == app4)
+  }
 
-    test("jackson and play-json parsing has the same result") {
-      val fullAppJson = """{
+  test("jackson and play-json parsing has the same result") {
+    val fullAppJson = """{
         "id": "/product/service/my-app",
         "cmd": "env && sleep 300",
         "args": ["/bin/sh", "-c", "env && sleep 300"],
@@ -506,123 +509,122 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
         "version": "2014-03-01T23:29:30.158Z"
     }"""
 
-      import com.fasterxml.jackson.databind.ObjectMapper
-      import com.fasterxml.jackson.module.scala.DefaultScalaModule
-      import mesosphere.jackson.CaseClassModule
-      import mesosphere.marathon.api.v2.json.Formats.AppDefinitionReads
-      import mesosphere.marathon.api.v2.json.MarathonModule
+    import com.fasterxml.jackson.databind.ObjectMapper
+    import com.fasterxml.jackson.module.scala.DefaultScalaModule
+    import mesosphere.jackson.CaseClassModule
+    import mesosphere.marathon.api.v2.json.Formats.AppDefinitionReads
+    import mesosphere.marathon.api.v2.json.MarathonModule
 
-      val mapper = new ObjectMapper
-      mapper.registerModule(DefaultScalaModule)
-      mapper.registerModule(new MarathonModule)
-      mapper.registerModule(CaseClassModule)
+    val mapper = new ObjectMapper
+    mapper.registerModule(DefaultScalaModule)
+    mapper.registerModule(new MarathonModule)
+    mapper.registerModule(CaseClassModule)
 
-      assert(mapper.readValue(fullAppJson, classOf[AppDefinition]) == Json.parse(fullAppJson).as[AppDefinition])
-    }
+    assert(mapper.readValue(fullAppJson, classOf[AppDefinition]) == Json.parse(fullAppJson).as[AppDefinition])
+  }
 
-    test("AppDefinition.WithTaskCountsAndDeploymentsWrites output of play-json matches jackson") {
-      val app = AppDefinition()
+  test("AppDefinition.WithTaskCountsAndDeploymentsWrites output of play-json matches jackson") {
+    val app = AppDefinition()
 
-      val task = Protos.MarathonTask
-        .newBuilder
-        .setHost("localhost")
-        .setId("my-task")
-        .addPorts(9999)
-        .setStagedAt(0)
-        .setStartedAt(0)
-        .setVersion("some-version")
-        .build()
+    val task = Protos.MarathonTask
+      .newBuilder
+      .setHost("localhost")
+      .setId("my-task")
+      .addPorts(9999)
+      .setStagedAt(0)
+      .setStartedAt(0)
+      .setVersion("some-version")
+      .build()
 
-      val appGroup = Group(PathId("/foo"), Set(app))
-      val enrichedApp = app.withTaskCountsAndDeployments(Seq(EnrichedTask(app.id, task, Nil, Nil)), HealthCounts(0, 0, 0), Seq(DeploymentPlan(Group.empty, appGroup)))
+    val appGroup = Group(PathId("/foo"), Set(app))
+    val enrichedApp = app.withTaskCountsAndDeployments(Seq(EnrichedTask(app.id, task, Nil, Nil)), HealthCounts(0, 0, 0), Seq(DeploymentPlan(Group.empty, appGroup)))
 
-      import com.fasterxml.jackson.databind.ObjectMapper
-      import com.fasterxml.jackson.module.scala.DefaultScalaModule
-      import mesosphere.jackson.CaseClassModule
-      import mesosphere.marathon.api.v2.AppsResource.WithTaskCountsAndDeploymentsWrites
-      import mesosphere.marathon.api.v2.json.MarathonModule
+    import com.fasterxml.jackson.databind.ObjectMapper
+    import com.fasterxml.jackson.module.scala.DefaultScalaModule
+    import mesosphere.jackson.CaseClassModule
+    import mesosphere.marathon.api.v2.AppsResource.WithTaskCountsAndDeploymentsWrites
+    import mesosphere.marathon.api.v2.json.MarathonModule
 
-      val mapper = new ObjectMapper
-      mapper.registerModule(DefaultScalaModule)
-      mapper.registerModule(new MarathonModule)
-      mapper.registerModule(CaseClassModule)
+    val mapper = new ObjectMapper
+    mapper.registerModule(DefaultScalaModule)
+    mapper.registerModule(new MarathonModule)
+    mapper.registerModule(CaseClassModule)
 
-      val playRes = Json.parse(Json.toJson(enrichedApp).toString())
-      val jacksonRes = Json.parse(mapper.writeValueAsString(enrichedApp))
-      assert(playRes == jacksonRes)
-    }
+    val playRes = Json.parse(Json.toJson(enrichedApp).toString())
+    val jacksonRes = Json.parse(mapper.writeValueAsString(enrichedApp))
+    assert(playRes == jacksonRes)
+  }
 
-    test("AppDefinition.WithTasksAndDeploymentsWrites output of play-json matches jackson") {
-      val app = AppDefinition()
+  test("AppDefinition.WithTasksAndDeploymentsWrites output of play-json matches jackson") {
+    val app = AppDefinition()
 
-      val task = Protos.MarathonTask
-        .newBuilder
-        .setHost("localhost")
-        .setId("my-task")
-        .addPorts(9999)
-        .setStagedAt(0)
-        .setStartedAt(0)
-        .setVersion("some-version")
-        .build()
+    val task = Protos.MarathonTask
+      .newBuilder
+      .setHost("localhost")
+      .setId("my-task")
+      .addPorts(9999)
+      .setStagedAt(0)
+      .setStartedAt(0)
+      .setVersion("some-version")
+      .build()
 
-      val appGroup = Group(PathId("/foo"), Set(app))
+    val appGroup = Group(PathId("/foo"), Set(app))
 
-      val enrichedApp = app.withTasksAndDeployments(Seq(EnrichedTask(app.id, task, Nil, Nil)), HealthCounts(0, 0, 0), Seq(DeploymentPlan(Group.empty, appGroup)))
+    val enrichedApp = app.withTasksAndDeployments(Seq(EnrichedTask(app.id, task, Nil, Nil)), HealthCounts(0, 0, 0), Seq(DeploymentPlan(Group.empty, appGroup)))
 
-      import com.fasterxml.jackson.databind.ObjectMapper
-      import com.fasterxml.jackson.module.scala.DefaultScalaModule
-      import mesosphere.jackson.CaseClassModule
-      import mesosphere.marathon.api.v2.AppsResource.WithTasksAndDeploymentsWrites
-      import mesosphere.marathon.api.v2.json.MarathonModule
+    import com.fasterxml.jackson.databind.ObjectMapper
+    import com.fasterxml.jackson.module.scala.DefaultScalaModule
+    import mesosphere.jackson.CaseClassModule
+    import mesosphere.marathon.api.v2.AppsResource.WithTasksAndDeploymentsWrites
+    import mesosphere.marathon.api.v2.json.MarathonModule
 
-      val mapper = new ObjectMapper
-      mapper.registerModule(DefaultScalaModule)
-      mapper.registerModule(new MarathonModule)
-      mapper.registerModule(CaseClassModule)
+    val mapper = new ObjectMapper
+    mapper.registerModule(DefaultScalaModule)
+    mapper.registerModule(new MarathonModule)
+    mapper.registerModule(CaseClassModule)
 
-      val playRes = Json.parse(Json.toJson(enrichedApp).toString())
-      val jacksonRes = Json.parse(mapper.writeValueAsString(enrichedApp))
-      assert(playRes == jacksonRes)
-    }
+    val playRes = Json.parse(Json.toJson(enrichedApp).toString())
+    val jacksonRes = Json.parse(mapper.writeValueAsString(enrichedApp))
+    assert(playRes == jacksonRes)
+  }
 
-    test("AppDefinition.WithTasksAndDeploymentsAndFailuresWrites output of play-json matches jackson") {
-      val app = AppDefinition()
+  test("AppDefinition.WithTasksAndDeploymentsAndFailuresWrites output of play-json matches jackson") {
+    val app = AppDefinition()
 
-      val task = Protos.MarathonTask
-        .newBuilder
-        .setHost("localhost")
-        .setId("my-task")
-        .addPorts(9999)
-        .setStagedAt(0)
-        .setStartedAt(0)
-        .setVersion("some-version")
-        .build()
+    val task = Protos.MarathonTask
+      .newBuilder
+      .setHost("localhost")
+      .setId("my-task")
+      .addPorts(9999)
+      .setStagedAt(0)
+      .setStartedAt(0)
+      .setVersion("some-version")
+      .build()
 
-      val appGroup = Group(PathId("/foo"), Set(app))
+    val appGroup = Group(PathId("/foo"), Set(app))
 
-      val failure = TaskFailure(
-        app.id,
-        mesos.TaskID.newBuilder.setValue(task.getId).build(),
-        mesos.TaskState.TASK_FAILED
-      )
+    val failure = TaskFailure(
+      app.id,
+      mesos.TaskID.newBuilder.setValue(task.getId).build(),
+      mesos.TaskState.TASK_FAILED
+    )
 
-      val enrichedApp = app.withTasksAndDeploymentsAndFailures(Seq(EnrichedTask(app.id, task, Nil, Nil)), HealthCounts(0, 0, 0), Seq(DeploymentPlan(Group.empty, appGroup)), Some(failure))
+    val enrichedApp = app.withTasksAndDeploymentsAndFailures(Seq(EnrichedTask(app.id, task, Nil, Nil)), HealthCounts(0, 0, 0), Seq(DeploymentPlan(Group.empty, appGroup)), Some(failure))
 
-      import com.fasterxml.jackson.databind.ObjectMapper
-      import com.fasterxml.jackson.module.scala.DefaultScalaModule
-      import mesosphere.jackson.CaseClassModule
-      import mesosphere.marathon.api.v2.AppsResource.WithTasksAndDeploymentsAndFailuresWrites
-      import mesosphere.marathon.api.v2.json.MarathonModule
+    import com.fasterxml.jackson.databind.ObjectMapper
+    import com.fasterxml.jackson.module.scala.DefaultScalaModule
+    import mesosphere.jackson.CaseClassModule
+    import mesosphere.marathon.api.v2.AppsResource.WithTasksAndDeploymentsAndFailuresWrites
+    import mesosphere.marathon.api.v2.json.MarathonModule
 
-      val mapper = new ObjectMapper
-      mapper.registerModule(DefaultScalaModule)
-      mapper.registerModule(new MarathonModule)
-      mapper.registerModule(CaseClassModule)
+    val mapper = new ObjectMapper
+    mapper.registerModule(DefaultScalaModule)
+    mapper.registerModule(new MarathonModule)
+    mapper.registerModule(CaseClassModule)
 
-      val playRes = Json.parse(Json.toJson(enrichedApp).toString())
-      val jacksonRes = Json.parse(mapper.writeValueAsString(enrichedApp))
-      assert(playRes == jacksonRes)
-    }
+    val playRes = Json.parse(Json.toJson(enrichedApp).toString())
+    val jacksonRes = Json.parse(mapper.writeValueAsString(enrichedApp))
+    assert(playRes == jacksonRes)
   }
 
   def getScalarResourceValue(proto: ServiceDefinition, name: String) = {
