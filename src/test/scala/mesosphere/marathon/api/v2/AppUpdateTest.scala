@@ -10,6 +10,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
+import mesosphere.mesos.protos._
+
 import javax.validation.Validation
 import mesosphere.jackson.CaseClassModule
 import mesosphere.marathon.MarathonSpec
@@ -76,9 +78,9 @@ class AppUpdateTest extends MarathonSpec {
       user = Some("nobody"),
       env = Some(Map("LANG" -> "en-US")),
       instances = Some(16),
-      resources = Some(AppDefinition.resourcesFrom(Resource.CPUS -> 2.0,
-        Resource.MEM -> 256.0,
-        Resource.DISK -> 1024.0)),
+      resources = Some(Seq(ScalarResource(Resource.CPUS, 2.0),
+        ScalarResource(Resource.MEM, 256.0),
+        ScalarResource(Resource.DISK, 1024.0))),
       // cpus = Some(2.0),
       // mem = Some(256.0),
       // disk = Some(1024.0),

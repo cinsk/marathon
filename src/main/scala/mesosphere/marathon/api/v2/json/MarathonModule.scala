@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind._
 import com.fasterxml.jackson.databind.deser.Deserializers
 import com.fasterxml.jackson.databind.ser.Serializers
 import org.apache.mesos.{ Protos => mesos }
+import mesosphere.mesos.protos.Resource
 import mesosphere.marathon.Protos.{ Constraint, MarathonTask }
 import mesosphere.marathon.api.v2._
 import mesosphere.marathon.api.validation.FieldConstraints._
@@ -304,7 +305,7 @@ object MarathonModule {
       user: Option[String] = None,
       env: Option[Map[String, String]] = None,
       instances: Option[JInt] = None,
-      resources: Option[Seq[mesos.Resource]] = None,
+      resources: Option[Seq[Resource]] = None,
       // cpus: Option[JDouble] = None,
       // mem: Option[JDouble] = None,
       // disk: Option[JDouble] = None,

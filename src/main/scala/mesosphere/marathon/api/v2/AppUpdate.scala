@@ -37,7 +37,7 @@ case class AppUpdate(
 
     instances: Option[JInt] = None,
 
-    resources: Option[Seq[mesos.Resource]] = None,
+    resources: Option[Seq[Resource]] = None,
 
     // cpus: Option[JDouble] = None,
 

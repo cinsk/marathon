@@ -493,7 +493,7 @@ trait AppDefinitionFormats {
       //       }
       //     }
       // } ~
-      (__ \ "resources").readNullable[Seq[ProtoResource]].withDefault(DefaultResources) ~
+      (__ \ "resources").readNullable[Seq[Resource]].withDefault(DefaultResources) ~
       // (__ \ "cpus").readNullable[JDouble](greaterThan(0.0)).withDefault(DefaultCpus) ~
       // (__ \ "mem").readNullable[JDouble].withDefault(DefaultMem) ~
       // (__ \ "disk").readNullable[JDouble].withDefault(DefaultDisk) ~
@@ -584,7 +584,7 @@ trait AppDefinitionFormats {
       (__ \ "user").readNullable[String] ~
       (__ \ "env").readNullable[Map[String, String]] ~
       (__ \ "instances").readNullable[Integer](minValue(0)) ~
-      (__ \ "resources").readNullable[Seq[mesos.Resource]] ~
+      (__ \ "resources").readNullable[Seq[Resource]] ~
       // (__ \ "cpus").readNullable[JDouble](greaterThan(0.0)) ~
       // (__ \ "mem").readNullable[JDouble] ~
       // (__ \ "disk").readNullable[JDouble] ~

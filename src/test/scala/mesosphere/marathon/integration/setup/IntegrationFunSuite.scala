@@ -5,12 +5,12 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import mesosphere.marathon.state.PathId
 import org.apache.zookeeper.{ WatchedEvent, Watcher, ZooKeeper }
 import org.scalatest._
-import scala.collection.mutable
+import scala.collection.{ mutable, immutable }
 import scala.concurrent.duration._
 import scala.util.Try
 import mesosphere.marathon.health.HealthCheck
 import mesosphere.marathon.state.AppDefinition
-import mesosphere.mesos.protos.Resource
+import mesosphere.mesos.protos._
 import org.joda.time.DateTime
 import scala.collection.JavaConverters._
 
@@ -219,8 +219,8 @@ trait SingleMarathonIntegrationTest extends ExternalMarathonIntegrationTest with
     val health = if (withHealth) Set(HealthCheck(gracePeriod = 20.second, interval = 1.second, maxConsecutiveFailures = 10)) else Set.empty[HealthCheck]
 
     AppDefinition(appId, exec, executor = "//cmd", instances = instances,
-      resources = AppDefinition.resourcesFrom(Resource.CPUS -> 0.5,
-        Resource.MEM -> 128.0),
+      resources = immutable.Seq[Resource](ScalarResource(Resource.CPUS, 0.5),
+        ScalarResource(Resource.MEM, 128.0)),
       // cpus = 0.5, mem = 128.0,
       healthChecks = health, dependencies = dependencies)
   }

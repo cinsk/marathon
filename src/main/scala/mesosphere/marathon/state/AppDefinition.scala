@@ -3,6 +3,7 @@ package mesosphere.marathon.state
 import java.lang.{ Double => JDouble, Integer => JInt }
 
 import com.fasterxml.jackson.annotation.{ JsonIgnore, JsonIgnoreProperties, JsonProperty }
+import mesosphere.marathon.tasks.ResourceMatcher
 import mesosphere.marathon.Protos.Constraint
 import mesosphere.marathon.api.v2.json.EnrichedTask
 import mesosphere.marathon.api.validation.FieldConstraints._
@@ -38,7 +39,7 @@ case class AppDefinition(
 
   @FieldMin(0) instances: JInt = AppDefinition.DefaultInstances,
 
-  resources: Seq[mesos.Resource] = AppDefinition.DefaultResources,
+  resources: Seq[Resource] = AppDefinition.DefaultResources,
 
   // cpus: JDouble = AppDefinition.DefaultCpus,
 
@@ -82,34 +83,41 @@ case class AppDefinition(
     "Health check port indices must address an element of the ports array or container port mappings."
   )
 
-  @JsonIgnore lazy val resourcesMap: Map[String, Resource] = {
-    import mesosphere.mesos.protos.Implicits._
-    val portsRanges = (for (port <- ports) yield Range(port.toLong, port.toLong)).to[Seq]
+  // @JsonIgnore lazy val resourcesMap: Map[String, Resource] = {
+  //   import mesosphere.mesos.protos.Implicits._
+  //   val portsRanges = (for (port <- ports) yield Range(port.toLong, port.toLong)).to[Seq]
+  // 
+  //   val portsResource = portsRanges.length match {
+  //     case 0 => None
+  //     case _ => Some(RangesResource(Resource.PORTS, portsRanges))
+  //   }
+  // 
+  //   val resMap = resources.map { r => (r.getName(), implicitly[Resource](r)) }.toMap
+  // 
+  //   portsResource match {
+  //     case Some(r) => resMap + (Resource.PORTS -> implicitly[Resource](r))
+  //     case _       => resMap
+  //   }
+  // }
 
-    val portsResource = portsRanges.length match {
-      case 0 => None
-      case _ => Some(RangesResource(Resource.PORTS, portsRanges))
+  def cpus: JDouble =
+    resources.find {
+      r => (ResourceMatcher.getName(r) == Resource.CPUS)
+    } match {
+      case Some(ScalarResource(_, value, _)) => value
+      case _                                 => AppDefinition.DefaultCpus
     }
 
-    val resMap = resources.map { r => (r.getName(), implicitly[Resource](r)) }.toMap
-
-    portsResource match {
-      case Some(r) => resMap + (Resource.PORTS -> implicitly[Resource](r))
-      case _       => resMap
-    }
-  }
-
-  def cpus: JDouble = resourcesMap.get(Resource.CPUS) match {
-    case Some(ScalarResource(_, value, _)) => value
-    case _                                 => AppDefinition.DefaultCpus
-  }
-
-  def mem: JDouble = resourcesMap.get(Resource.MEM) match {
+  def mem: JDouble = resources.find {
+    r => (ResourceMatcher.getName(r) == Resource.MEM)
+  } match {
     case Some(ScalarResource(_, value, _)) => value
     case _                                 => AppDefinition.DefaultMem
   }
 
-  def disk: JDouble = resourcesMap.get(Resource.DISK) match {
+  def disk: JDouble = resources.find {
+    r => (ResourceMatcher.getName(r) == Resource.DISK)
+  } match {
     case Some(ScalarResource(_, value, _)) => value
     case _                                 => AppDefinition.DefaultDisk
   }
@@ -130,9 +138,9 @@ case class AppDefinition(
     import mesosphere.mesos.protos.Implicits._
 
     val commandInfo = TaskBuilder.commandInfo(this, None, None, Seq.empty)
-    val cpusResource = ScalarResource(Resource.CPUS, cpus)
-    val memResource = ScalarResource(Resource.MEM, mem)
-    val diskResource = ScalarResource(Resource.DISK, disk)
+    // val cpusResource = ScalarResource(Resource.CPUS, cpus)
+    // val memResource = ScalarResource(Resource.MEM, mem)
+    // val diskResource = ScalarResource(Resource.DISK, disk)
     val appLabels = labels.map {
       case (key, value) =>
         mesos.Parameter.newBuilder
@@ -152,15 +160,18 @@ case class AppDefinition(
       .setMaxLaunchDelay(maxLaunchDelay.toMillis)
       .setExecutor(executor)
       .addAllConstraints(constraints.asJava)
-      .addResources(cpusResource)
-      .addResources(memResource)
-      .addResources(diskResource)
+      // .addResources(cpusResource)
+      // .addResources(memResource)
+      // .addResources(diskResource)
       .addAllHealthChecks(healthChecks.map(_.toProto).asJava)
       .setVersion(version.toString)
       .setUpgradeStrategy(upgradeStrategy.toProto)
       .addAllDependencies(dependencies.map(_.toString).asJava)
       .addAllStoreUrls(storeUrls.asJava)
       .addAllLabels(appLabels.asJava)
+
+    for (r <- resources)
+      builder.addResources(r)
 
     container.foreach { c => builder.setContainer(c.toProto()) }
 
@@ -181,8 +192,11 @@ case class AppDefinition(
     //       r => r.getName -> (r.getScalar.getValue: JDouble)
     //     }.toMap
 
-    val resourcesSeq: Seq[mesos.Resource] =
-      proto.getResourcesList.asScala.toList.toSeq
+    val resourcesAsScala: Seq[Resource] = {
+      import mesosphere.mesos.protos.Implicits._
+      for (r <- proto.getResourcesList.asScala.toList)
+        yield implicitly[Resource](r)
+    }
 
     val commandOption =
       if (proto.getCmd.hasValue && proto.getCmd.getValue.nonEmpty)
@@ -216,7 +230,7 @@ case class AppDefinition(
       backoffFactor = proto.getBackoffFactor,
       maxLaunchDelay = proto.getMaxLaunchDelay.milliseconds,
       constraints = proto.getConstraintsList.asScala.toSet,
-      resources = resourcesSeq,
+      resources = resourcesAsScala,
       // cpus = resourcesMap.getOrElse(Resource.CPUS, this.cpus),
       // mem = resourcesMap.getOrElse(Resource.MEM, this.mem),
       // disk = resourcesMap.getOrElse(Resource.DISK, this.disk),
@@ -289,7 +303,6 @@ case class AppDefinition(
 }
 
 object AppDefinition {
-
   val RandomPortValue: Int = 0
 
   // App defaults
@@ -312,7 +325,10 @@ object AppDefinition {
   val DefaultDisk: Double = 0.0
 
   // TODO cinsk: fill with default cpus, mem, and disk.
-  val DefaultResources: Seq[mesos.Resource] = resourcesFrom()
+  val DefaultResources: Seq[Resource] = Seq(ScalarResource(Resource.CPUS, DefaultCpus),
+    ScalarResource(Resource.MEM, DefaultMem),
+    ScalarResource(Resource.DISK, DefaultDisk))
+
   val DefaultRole: String = "*"
 
   val DefaultExecutor: String = ""
@@ -348,16 +364,16 @@ object AppDefinition {
 
   import org.apache.mesos.{ Protos => mesos }
 
-  def resourcesFrom(res: (String, Double)*): scala.collection.immutable.Seq[mesos.Resource] = {
-    import mesosphere.mesos.protos.Implicits._
-
-    val m = Map(Resource.CPUS -> DefaultCpus,
-      Resource.MEM -> DefaultMem,
-      Resource.DISK -> DefaultDisk) ++ res.toMap
-
-    (for ((name, value) <- m)
-      yield resourceToProto(ScalarResource(name, value))).toList.toSeq
-  }
+  // def resourcesFrom(res: (String, Double)*): scala.collection.immutable.Seq[mesos.Resource] = {
+  //   import mesosphere.mesos.protos.Implicits._
+  // 
+  //   val m = Map(Resource.CPUS -> DefaultCpus,
+  //     Resource.MEM -> DefaultMem,
+  //     Resource.DISK -> DefaultDisk) ++ res.toMap
+  // 
+  //   (for ((name, value) <- m)
+  //     yield resourceToProto(ScalarResource(name, value))).toList.toSeq
+  // }
 
   protected[marathon] class WithTaskCountsAndDeployments(
     appTasks: Seq[EnrichedTask],
@@ -435,3 +451,4 @@ object AppDefinition {
   }
 
 }
+

@@ -21,14 +21,16 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable.Seq
 import scala.concurrent.duration._
 
+import mesosphere.mesos.protos._
+
 class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation {
 
   test("ToProto") {
     val app1 = AppDefinition(
       id = "play".toPath,
       cmd = Some("bash foo-*/start -Dhttp.port=$PORT"),
-      resources = AppDefinition.resourcesFrom(Resource.CPUS -> 4,
-        Resource.MEM -> 256),
+      resources = Seq(ScalarResource(Resource.CPUS, 4),
+        ScalarResource(Resource.MEM, 256)),
       // cpus = 4,
       // mem = 256,
       instances = 5,
@@ -59,8 +61,8 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
       container = Some(
         Container(docker = Some(Container.Docker("group/image")))
       ),
-      resources = AppDefinition.resourcesFrom(Resource.CPUS -> 4,
-        Resource.MEM -> 256),
+      resources = Seq(ScalarResource(Resource.CPUS, 4),
+        ScalarResource(Resource.MEM, 256)),
       // cpus = 4,
       // mem = 256,
       instances = 5,
@@ -109,8 +111,8 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
     val app1 = AppDefinition(
       id = "play".toPath,
       cmd = Some("bash foo-*/start -Dhttp.port=$PORT"),
-      resources = AppDefinition.resourcesFrom(Resource.CPUS -> 4,
-        Resource.MEM -> 256),
+      resources = Seq(ScalarResource(Resource.CPUS, 4),
+        ScalarResource(Resource.MEM, 256)),
       // cpus = 4,
       // mem = 256,
       instances = 5,
@@ -333,9 +335,9 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
       user = Some("nobody"),
       env = Map("key1" -> "value1", "key2" -> "value2"),
       instances = 5,
-      resources = AppDefinition.resourcesFrom(Resource.CPUS -> 5.0,
-        Resource.MEM -> 55.0,
-        Resource.DISK -> 550.0),
+      resources = Seq(ScalarResource(Resource.CPUS, 5.0),
+        ScalarResource(Resource.MEM, 55.0),
+        ScalarResource(Resource.DISK, 550.0)),
       // cpus = 5.0,
       // mem = 55.0,
       // disk = 550.0,
