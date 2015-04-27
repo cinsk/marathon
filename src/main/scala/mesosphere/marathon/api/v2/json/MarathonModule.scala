@@ -33,8 +33,7 @@ class MarathonModule extends Module {
   private val appUpdateClass = classOf[AppUpdate]
   private val groupIdClass = classOf[PathId]
   private val taskIdClass = classOf[mesos.TaskID]
-  private val mesosResourceClass = classOf[mesos.Resource]
-  //  private val resourceClass = classOf[mesosphere.mesos.protos.Resource]
+  private val resourceClass = classOf[mesosphere.mesos.protos.Resource]
 
   def getModuleName: String = "MarathonModule"
 
@@ -54,8 +53,7 @@ class MarathonModule extends Module {
         else if (matches(finiteDurationClass)) FiniteDurationSerializer
         else if (matches(groupIdClass)) PathIdSerializer
         else if (matches(taskIdClass)) TaskIdSerializer
-        //        else if (matches(resourceClass)) ResourceSerializer
-        else if (matches(mesosResourceClass)) MesosResourceSerializer
+        else if (matches(resourceClass)) ResourceSerializer
         else null
       }
     })
@@ -73,8 +71,7 @@ class MarathonModule extends Module {
         else if (matches(appUpdateClass)) AppUpdateDeserializer
         else if (matches(groupIdClass)) PathIdDeserializer
         else if (matches(taskIdClass)) TaskIdDeserializer
-        //        else if (matches(resourceClass)) ResourceDeserializer
-        else if (matches(mesosResourceClass)) MesosResourceDeserializer
+        else if (matches(resourceClass)) ResourceDeserializer
         else null
       }
     })
@@ -209,50 +206,47 @@ class MarathonModule extends Module {
     }
   }
 
-  object MesosResourceSerializer extends JsonSerializer[mesos.Resource] {
-    def serialize(resource: mesos.Resource, jgen: JsonGenerator, provider: SerializerProvider) {
+  object ResourceSerializer extends JsonSerializer[Resource] {
+    def serialize(resource: Resource, jgen: JsonGenerator, provider: SerializerProvider) {
       jgen.writeStartObject()
-      jgen.writeStringField("name", resource.getName)
 
-      if (resource.hasScalar) {
-        jgen.writeNumberField("value", resource.getScalar.getValue)
+      if (resource.isInstanceOf[ScalarResource]) {
+        val scalar = resource.asInstanceOf[ScalarResource]
+        jgen.writeStringField("name", scalar.name)
+        jgen.writeNumberField("value", scalar.value)
+        if (scalar.role.length() > 0) {
+          jgen.writeStringField("role", scalar.role)
+        }
+        else {
+          jgen.writeStringField("role", AppDefinition.DefaultRole)
+        }
       }
 
-      if (resource.hasRole) {
-        jgen.writeObjectField("role", resource.getRole)
+      else if (resource.isInstanceOf[RangesResource]) {
+        val ranges = resource.asInstanceOf[RangesResource]
+        jgen.writeStringField("name", ranges.name)
+        jgen.writeObjectField("value", ranges.ranges.seq)
+        if (ranges.role.length() > 0) {
+          jgen.writeStringField("role", ranges.role)
+        }
+        else {
+          jgen.writeStringField("role", AppDefinition.DefaultRole)
+        }
       }
-      else {
-        jgen.writeObjectField("role", AppDefinition.DefaultRole)
+
+      else if (resource.isInstanceOf[SetResource]) {
+        val set = resource.asInstanceOf[SetResource]
+        jgen.writeStringField("name", set.name)
+        jgen.writeObjectField("value", set.items.seq)
+        if (set.role.length() > 0) {
+          jgen.writeStringField("role", set.role)
+        }
+        else {
+          jgen.writeStringField("role", AppDefinition.DefaultRole)
+        }
       }
 
       jgen.writeEndObject()
-    }
-  }
-
-  object MesosResourceDeserializer extends JsonDeserializer[mesos.Resource] {
-    def deserialize(json: JsonParser, context: DeserializationContext): mesos.Resource = {
-      val tree: JsonNode = json.getCodec.readTree(json)
-      val builder = mesos.Resource.newBuilder
-
-      builder.setName(tree.get("name").asText())
-
-      val value: JsonNode = tree.get("value")
-      if (value.isDouble) {
-        builder.setType(mesos.Value.Type.SCALAR)
-          .setScalar(mesos.Value.Scalar.newBuilder().setValue(value.asDouble).build)
-      }
-      // RangesResource??
-      // SetResource??
-
-      val role: JsonNode = tree.get("role")
-      if (role != null) {
-        builder.setRole(role.asText)
-      }
-      else {
-        builder.setRole(mesosphere.marathon.state.AppDefinition.DefaultRole)
-      }
-
-      builder.build
     }
   }
 
@@ -261,15 +255,59 @@ class MarathonModule extends Module {
       val tree: JsonNode = json.getCodec.readTree(json)
 
       val restype = tree.get("name").asText match {
-        case "cpus" => mesosphere.mesos.protos.Resource.CPUS
-        case "mem"  => mesosphere.mesos.protos.Resource.MEM
-        case "disk" => mesosphere.mesos.protos.Resource.DISK
+        case "cpus"     => mesosphere.mesos.protos.Resource.CPUS
+        case "mem"      => mesosphere.mesos.protos.Resource.MEM
+        case "disk"     => mesosphere.mesos.protos.Resource.DISK
+        case custom @ _ => custom
       }
 
-      val value = tree.get("name").asDouble
-      val role = tree.get("role").asText
+      val value = tree.get("value")
+      val role = tree.get("role") match {
+        case null         => AppDefinition.DefaultRole
+        case roleNode @ _ => roleNode.asText
+      }
 
-      ScalarResource(restype, value, role)
+      var res: Resource = null
+      if (value.isDouble()) {
+        res = ScalarResource(restype, value.asDouble, role)
+      }
+      else if (value.isArray()) {
+        println("[deserialize] ARRAY!!!: " + value)
+
+        // if elements exist
+        if (value.elements.hasNext()) {
+          // text -> SetResource
+          if (value.elements.next().isTextual()) {
+            var elemSet: Set[String] = Set()
+            val it = value.elements
+            while (it.hasNext) {
+              elemSet = elemSet + it.next.asText
+            }
+            res = SetResource(restype, elemSet, role)
+          }
+          // otherwise -> RangesResource        
+          else {
+            var rangeSeq: Seq[Range] = Seq()
+            val it = value.elements()
+            while (it.hasNext()) {
+              val rangeNode = it.next()
+              rangeSeq = rangeSeq :+ Range(rangeNode.get("begin").asLong, rangeNode.get("end").asLong)
+            }
+            res = RangesResource(restype, rangeSeq, role)
+          }
+        }
+        // otherwise make empty RangesResource or SetResource based on resource name 
+        else {
+          if (restype.toLowerCase.contains("port")) {
+            res = RangesResource(restype, Seq())
+          }
+          else {
+            res = SetResource(restype, Set())
+          }
+        }
+      }
+
+      res
     }
   }
 
