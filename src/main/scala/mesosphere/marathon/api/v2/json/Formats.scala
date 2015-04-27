@@ -378,8 +378,33 @@ trait AppDefinitionFormats {
           val value = (json \ "value")
 
           value match {
-            case JsNumber(num) => JsSuccess(ScalarResource(name, num.toDouble, role))
-            case _             => JsError("Not supported yet")
+            case JsNumber(num) if (num >= 0) => name match {
+              case Resource.CPUS if num == 0 => JsError("cpus must be larger than zero.")
+              case Resource.MEM if num == 0  => JsError("mem must be larger than zero.")
+              case _                         => JsSuccess(ScalarResource(name, num.toDouble, role))
+            }
+
+            case JsArray(arr) if !arr.isEmpty =>
+              try {
+                val s: Seq[String] = value.as[Seq[String]]
+                JsSuccess(SetResource(name, s.toSet, role))
+              }
+              catch {
+                case e @ JsResultException(_) =>
+                  try {
+                    JsSuccess(RangesResource(name,
+                      (for (o <- arr)
+                        yield o match {
+                        case obj @ JsObject(_) => Range((obj \ "begin").as[Long], (obj \ "end").as[Long])
+                        case _                 => throw e
+                      }).toSeq,
+                      role))
+                  }
+                  catch {
+                    case JsResultException(msg) => JsError(msg)
+                  }
+              }
+            case _ => JsError("Not supported yet")
           }
         case _ => JsError("Not supported yet")
       }

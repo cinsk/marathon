@@ -142,6 +142,7 @@ class TaskBuilder(app: AppDefinition,
 
   def portToResource(a: Seq[JInt]): Option[RangesResource] = {
     import mesosphere.mesos.protos._
+    @annotation.tailrec
     def splitRange(lst: Seq[JInt], rangeBegin: Int, lastElem: Int,
                    resolved: Seq[Range]): Seq[Range] = {
       lst match {
