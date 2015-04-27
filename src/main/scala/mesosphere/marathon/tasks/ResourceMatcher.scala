@@ -70,12 +70,31 @@ class ResourceMatcher(app: AppDefinition, offer: Offer) extends Logging {
     }
   }
 
-  def resources(): Option[Seq[Resource]] = {
+  def normalizeReqs(needed: Seq[Resource]): Seq[Resource] = {
+    import mesosphere.mesos.protos._
+    var added: Seq[Resource] = Seq()
+
+    needed.find(r => ResourceMatcher.getName(r) == Resource.PORTS) match {
+      case None => added = added ++ Seq(RangesResource(Resource.PORTS, Seq(Range(0, 0))))
+      case _    =>
+    }
+    needed.find(r => ResourceMatcher.getName(r) == Resource.CPUS) match {
+      case None => added = added ++ Seq(ScalarResource(Resource.CPUS, AppDefinition.DefaultCpus))
+      case _    =>
+    }
+    needed.find(r => ResourceMatcher.getName(r) == Resource.MEM) match {
+      case None => added = added ++ Seq(ScalarResource(Resource.PORTS, AppDefinition.DefaultMem))
+      case _    =>
+    }
+    needed ++ added
+  }
+
+  def resources(needed: Seq[Resource] = app.resources): Option[Seq[Resource]] = {
     import mesosphere.mesos.protos.Implicits._
     val offers = for (r <- offer.getResourcesList().asScala.toList.toSeq)
       yield implicitly[Resource](r)
 
-    doMatch(app.resources, offers)
+    doMatch(normalizeReqs(needed), offers)
   }
 
   //private
