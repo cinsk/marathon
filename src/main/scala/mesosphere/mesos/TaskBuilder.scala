@@ -160,6 +160,7 @@ class TaskBuilder(app: AppDefinition,
     if (req.isEmpty) None
     else Some(RangesResource(Resource.PORTS, req match {
       case hd :: tl => splitRange(tl, hd, hd, Seq())
+      case _        => Nil
     }))
   }
 
