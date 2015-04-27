@@ -140,9 +140,36 @@ class TaskBuilder(app: AppDefinition,
     Some(builder.build -> ports)
   }
 
+  def portToResource(a: Seq[JInt]): Option[RangesResource] = {
+    import mesosphere.mesos.protos._
+    def splitRange(lst: Seq[JInt], rangeBegin: Int, lastElem: Int,
+                   resolved: Seq[Range]): Seq[Range] = {
+      lst match {
+        case hd :: tl =>
+          if (hd == lastElem + 1)
+            splitRange(tl, rangeBegin, hd, resolved)
+          else
+            splitRange(tl, hd, hd,
+              resolved ++ Seq(Range(rangeBegin.toLong, lastElem.toLong)))
+        case Nil =>
+          resolved ++ Seq(Range(rangeBegin.toLong, lastElem.toLong))
+      }
+    }
+
+    val req = a.toSet.toSeq.sorted
+    if (req.isEmpty) None
+    else Some(RangesResource(Resource.PORTS, req match {
+      case hd :: tl => splitRange(tl, hd, hd, Seq())
+    }))
+  }
+
   private def offerMatches(offer: Offer): Option[Seq[Resource]] = {
     val matcher = new ResourceMatcher(app, offer)
-    val result = matcher.resources()
+    val result = matcher.resources(app.resources ++
+      (portToResource(app.ports) match {
+        case Some(x) => Seq(x)
+        case _       => Nil
+      }))
 
     val badConstraints: Set[Constraint] = {
       val runningTasks = taskTracker.get(app.id)
