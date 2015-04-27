@@ -210,40 +210,30 @@ class MarathonModule extends Module {
     def serialize(resource: Resource, jgen: JsonGenerator, provider: SerializerProvider) {
       jgen.writeStartObject()
 
-      if (resource.isInstanceOf[ScalarResource]) {
-        val scalar = resource.asInstanceOf[ScalarResource]
-        jgen.writeStringField("name", scalar.name)
-        jgen.writeNumberField("value", scalar.value)
-        if (scalar.role.length() > 0) {
-          jgen.writeStringField("role", scalar.role)
+      var role: String = ""
+      resource match {
+        case ScalarResource(name, value, _role) => {
+          jgen.writeStringField("name", name)
+          jgen.writeNumberField("value", value)
+          role = _role
         }
-        else {
-          jgen.writeStringField("role", AppDefinition.DefaultRole)
+        case RangesResource(name, value, _role) => {
+          jgen.writeStringField("name", name)
+          jgen.writeObjectField("value", value)
+          role = _role
         }
-      }
-
-      else if (resource.isInstanceOf[RangesResource]) {
-        val ranges = resource.asInstanceOf[RangesResource]
-        jgen.writeStringField("name", ranges.name)
-        jgen.writeObjectField("value", ranges.ranges.seq)
-        if (ranges.role.length() > 0) {
-          jgen.writeStringField("role", ranges.role)
-        }
-        else {
-          jgen.writeStringField("role", AppDefinition.DefaultRole)
+        case SetResource(name, value, _role) => {
+          jgen.writeStringField("name", name)
+          jgen.writeObjectField("value", value)
+          role = _role
         }
       }
 
-      else if (resource.isInstanceOf[SetResource]) {
-        val set = resource.asInstanceOf[SetResource]
-        jgen.writeStringField("name", set.name)
-        jgen.writeObjectField("value", set.items.seq)
-        if (set.role.length() > 0) {
-          jgen.writeStringField("role", set.role)
-        }
-        else {
-          jgen.writeStringField("role", AppDefinition.DefaultRole)
-        }
+      if (role.length() > 0) {
+        jgen.writeStringField("role", role)
+      }
+      else {
+        jgen.writeStringField("role", AppDefinition.DefaultRole)
       }
 
       jgen.writeEndObject()
