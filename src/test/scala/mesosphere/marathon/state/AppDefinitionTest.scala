@@ -301,7 +301,6 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
     assert(app1.args.isEmpty)
     val json1 = mapper.writeValueAsString(app1)
     val readResult1 = mapper.readValue(json1, classOf[AppDefinition])
-    println("===== result#1")
     assert(readResult1 == app1)
 
     val json2 = """
@@ -326,7 +325,6 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
         }
       """
     val readResult2 = mapper.readValue(json2, classOf[AppDefinition])
-    println("===== result#2")
     assert(readResult2.healthChecks.head.command.isDefined)
 
     val app3 = AppDefinition(
@@ -365,7 +363,6 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
     )
     val json3 = mapper.writeValueAsString(app3)
     val readResult3 = mapper.readValue(json3, classOf[AppDefinition])
-    println("===== result#3")
     assert(readResult3 == app3)
 
     import java.lang.{ Integer => JInt }
@@ -404,7 +401,6 @@ class AppDefinitionTest extends MarathonSpec with Matchers with ModelValidation 
         }
       """
     val readResult4 = mapper.readValue(json4, classOf[AppDefinition])
-    println("===== result#4")
     assert(readResult4.copy(version = app4.version) == app4)
   }
 
