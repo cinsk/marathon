@@ -92,7 +92,7 @@ object Container {
   case class Docker(
       image: String = "",
       network: Option[mesos.ContainerInfo.DockerInfo.Network] = None,
-      portMappings: Option[Seq[Docker.PortMapping]] = None,
+      portMappings: Option[Seq[Docker.PortMapping]] = Some(Seq.empty),
       privileged: Boolean = false,
       parameters: Seq[Parameter] = Nil) {
 
@@ -144,7 +144,7 @@ object Container {
         portMappings = {
           val pms = proto.getPortMappingsList.asScala
 
-          if (pms.isEmpty) None
+          if (pms.isEmpty) Some(Seq.empty)
           else Some(pms.map(PortMapping(_)).to[Seq])
         },
 
